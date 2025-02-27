@@ -36,6 +36,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	ErrSyncInProgress errp.ErrorCode = "syncInProgress"
+)
+
 // AccountConfig holds account configuration.
 type AccountConfig struct {
 	// Pointer to persisted config. Do not modify this directly. Use

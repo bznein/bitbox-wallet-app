@@ -80,19 +80,27 @@ export const AccountsSummary = ({
     if (summary.success) {
       setSummaryData(summary.data);
     } else {
-      console.error(summary.error);
+      if (summary.errorMessage == 'syncInProgress') {
+        console.log('sync in progress');
+      } else {
+        console.error(summary.errorMessage);
+      }
     }
   }, [mounted]);
 
   const getAccountsBalance = useCallback(async () => {
-    try {
-      const balance = await accountApi.getAccountsBalance();
-      if (!mounted.current) {
-        return;
+    const balance = await accountApi.getAccountsBalance();
+    if (!mounted.current) {
+      return;
+    }
+    if (balance.success) {
+      setBalancePerCoin(balance.balance);
+    } else {
+      if (balance.errorMessage != 'syncInProgress') {
+        console.error(balance.errorMessage);
+      } else {
+        console.log('sync in progress');
       }
-      setBalancePerCoin(balance);
-    } catch (err) {
-      console.error(err);
     }
   }, [mounted]);
 
@@ -105,23 +113,29 @@ export const AccountsSummary = ({
       setAccountsTotalBalance(totalBalance.totalBalance);
     } else {
       // if rates are not available, balance will be reloaded later.
-      if (totalBalance.errorCode !== 'ratesNotAvailable') {
-        console.error(totalBalance.errorMessage);
-      } else {
+      if (totalBalance.errorCode == 'ratesNotAvailable') {
         console.log('rates not available');
+      } else if (totalBalance.errorCode == 'syncInProgress') {
+        console.log('sync in progress');
+      } else {
+        console.error(totalBalance.errorMessage);
       }
     }
   }, [mounted]);
 
   const getCoinsTotalBalance = useCallback(async () => {
-    try {
-      const coinBalance = await accountApi.getCoinsTotalBalance();
-      if (!mounted.current) {
-        return;
+    const coinBalance = await accountApi.getCoinsTotalBalance();
+    if (!mounted.current) {
+      return;
+    }
+    if (coinBalance.success) {
+      setCoinsTotalBalance(coinBalance.coinsTotalBalance);
+    } else {
+      if (coinBalance.errorMessage == 'syncInProgress') {
+        console.log('sync in progress');
+      } else {
+        console.error(coinBalance.errorMessage);
       }
-      setCoinsTotalBalance(coinBalance);
-    } catch (err) {
-      console.error(err);
     }
   }, [mounted]);
 
@@ -142,9 +156,12 @@ export const AccountsSummary = ({
     if (!mounted.current) {
       return;
     }
+    if (!balance.success) {
+      return;
+    }
     setBalances((prevBalances) => ({
       ...prevBalances,
-      [code]: balance
+      [code]: balance.balance
     }));
   }, [mounted]);
 
