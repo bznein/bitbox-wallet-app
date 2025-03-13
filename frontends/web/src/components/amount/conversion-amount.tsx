@@ -21,7 +21,6 @@ import { Arrow } from '@/components/transactions/components/arrows';
 import { Amount } from '@/components/amount/amount';
 import { getTxSign } from '@/utils/transaction';
 import styles from './conversion-amount.module.css';
-import { Skeleton } from '@/components/skeleton/skeleton';
 
 type TConversionAmountProps = {
   amount: IAmount;
@@ -70,12 +69,8 @@ export const ConversionAmount = ({
             unit={conversionUnit}
           />
         </>
-      ) : (
-        <div className={styles.skeletonContainer}>
-          <Skeleton />
-        </div>
-      )}
-      <span className={styles.txUnit}>{' '}{conversionUnit}</span>
+      ) : null }
+      { (conversion || sendToSelf) ? <span className={styles.txUnit}>{' '}{conversionUnit}</span> : null }
     </span>
   );
 };
