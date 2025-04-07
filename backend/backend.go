@@ -34,6 +34,7 @@ import (
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/btc/types"
 	coinpkg "github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/coin"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/eth"
+	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/eth/blockbook"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/eth/etherscan"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/ltc"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/config"
@@ -225,6 +226,7 @@ type Backend struct {
 	// can be a regular or, if Tor is enabled in the config, a SOCKS5 proxy client.
 	httpClient          *http.Client
 	etherScanHTTPClient *http.Client
+	blockBookHTTPClient *http.Client
 	ratesUpdater        *rates.RateUpdater
 	banners             *banners.Banners
 
@@ -285,6 +287,7 @@ func NewBackend(arguments *arguments.Arguments, environment Environment) (*Backe
 	backend.socksProxy = backendProxy
 	backend.httpClient = hclient
 	backend.etherScanHTTPClient = hclient
+	backend.blockBookHTTPClient = hclient
 
 	ratesCache := filepath.Join(arguments.CacheDirectoryPath(), "exchangerates")
 	if err := os.MkdirAll(ratesCache, 0700); err != nil {
@@ -521,17 +524,20 @@ func (backend *Backend) Coin(code coinpkg.Code) (coinpkg.Coin, error) {
 			"https://blockchair.com/litecoin/transaction/", backend.socksProxy)
 	case code == coinpkg.CodeETH:
 		etherScan := etherscan.NewEtherScan("https://api.etherscan.io/api", backend.etherScanHTTPClient)
-		coin = eth.NewCoin(etherScan, code, "Ethereum", "ETH", "ETH", params.MainnetChainConfig,
+		blockBook := blockbook.NewBlockBook("foo", backend.blockBookHTTPClient)
+		coin = eth.NewCoin(blockBook, etherScan, code, "Ethereum", "ETH", "ETH", params.MainnetChainConfig,
 			"https://etherscan.io/tx/",
 			nil)
 	case code == coinpkg.CodeSEPETH:
 		etherScan := etherscan.NewEtherScan("https://api-sepolia.etherscan.io/api", backend.etherScanHTTPClient)
-		coin = eth.NewCoin(etherScan, code, "Ethereum Sepolia", "SEPETH", "SEPETH", params.SepoliaChainConfig,
+		blockBook := blockbook.NewBlockBook("foo", backend.blockBookHTTPClient)
+		coin = eth.NewCoin(blockBook, etherScan, code, "Ethereum Sepolia", "SEPETH", "SEPETH", params.SepoliaChainConfig,
 			"https://sepolia.etherscan.io/tx/",
 			nil)
 	case erc20Token != nil:
 		etherScan := etherscan.NewEtherScan("https://api.etherscan.io/api", backend.etherScanHTTPClient)
-		coin = eth.NewCoin(etherScan, erc20Token.code, erc20Token.name, erc20Token.unit, "ETH", params.MainnetChainConfig,
+		blockBook := blockbook.NewBlockBook("foo", backend.blockBookHTTPClient)
+		coin = eth.NewCoin(blockBook, etherScan, erc20Token.code, erc20Token.name, erc20Token.unit, "ETH", params.MainnetChainConfig,
 			"https://etherscan.io/tx/",
 			erc20Token.token,
 		)

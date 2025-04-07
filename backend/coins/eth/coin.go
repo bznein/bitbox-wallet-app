@@ -34,6 +34,7 @@ import (
 type Coin struct {
 	observable.Implementation
 	client                rpcclient.Interface
+	fallbackClient        rpcclient.Interface
 	code                  coin.Code
 	name                  string
 	unit                  string
@@ -49,6 +50,7 @@ type Coin struct {
 // For erc20 tokens, provide erc20Token using NewERC20Token() (otherwise keep nil).
 func NewCoin(
 	client rpcclient.Interface,
+	fallbackClient rpcclient.Interface,
 	code coin.Code,
 	name string,
 	unit string,
@@ -59,6 +61,7 @@ func NewCoin(
 ) *Coin {
 	return &Coin{
 		client:                client,
+		fallbackClient:        fallbackClient,
 		code:                  code,
 		name:                  name,
 		unit:                  unit,
