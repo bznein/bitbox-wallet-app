@@ -19,7 +19,6 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/coin"
 	coinpkg "github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/coin"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/eth/erc20"
@@ -27,19 +26,9 @@ import (
 	"github.com/BitBoxSwiss/bitbox-wallet-app/util/errp"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/util/logging"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/util/observable"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/sirupsen/logrus"
 )
-
-// TransactionsSource source of Ethereum transactions. An additional source for this is needed as a
-// normal ETH full node does not expose an API endpoint to get transactions per address.
-type TransactionsSource interface {
-	Transactions(
-		blockTipHeight *big.Int,
-		address common.Address, endBlock *big.Int, erc20Token *erc20.Token) (
-		[]*accounts.TransactionData, error)
-}
 
 // Coin models an Ethereum coin.
 type Coin struct {
@@ -53,15 +42,10 @@ type Coin struct {
 	blockExplorerTxPrefix string
 	erc20Token            *erc20.Token
 
-	transactionsSource TransactionsSource
-
 	log *logrus.Entry
 }
 
 // NewCoin creates a new coin with the given parameters.
-// transactionsSource: can be nil, in which case transactions will not be processed (in other
-// words, account.Transactions() will always be empty apart from the outgoing transactions which //
-// are stored in the local database).
 // For erc20 tokens, provide erc20Token using NewERC20Token() (otherwise keep nil).
 func NewCoin(
 	client rpcclient.Interface,
@@ -71,7 +55,6 @@ func NewCoin(
 	feeUnit string,
 	net *params.ChainConfig,
 	blockExplorerTxPrefix string,
-	transactionsSource TransactionsSource,
 	erc20Token *erc20.Token,
 ) *Coin {
 	return &Coin{
@@ -83,8 +66,6 @@ func NewCoin(
 		net:                   net,
 		blockExplorerTxPrefix: blockExplorerTxPrefix,
 
-		transactionsSource: transactionsSource,
-
 		erc20Token: erc20Token,
 
 		log: logging.Get().WithGroup("coin").WithField("code", code),
@@ -94,11 +75,6 @@ func NewCoin(
 // TstSetClient must only be used in unit tests to mock the RPC client.
 func (coin *Coin) TstSetClient(client rpcclient.Interface) {
 	coin.client = client
-}
-
-// TstSetTransactionsSource must only be used in unit tests to mock the transactions source.
-func (coin *Coin) TstSetTransactionsSource(ts TransactionsSource) {
-	coin.transactionsSource = ts
 }
 
 // Net returns the network (mainnet, testnet, etc.).
@@ -185,11 +161,6 @@ func (coin *Coin) ParseAmount(amount string) (coinpkg.Amount, error) {
 // BlockExplorerTransactionURLPrefix implements coin.Coin.
 func (coin *Coin) BlockExplorerTransactionURLPrefix() string {
 	return coin.blockExplorerTxPrefix
-}
-
-// TransactionsSource returns an instance of TransactionsSource.
-func (coin *Coin) TransactionsSource() TransactionsSource {
-	return coin.transactionsSource
 }
 
 func (coin *Coin) String() string {

@@ -5,6 +5,7 @@ package mocks
 
 import (
 	"context"
+	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/eth/erc20"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/eth/rpcclient"
 	ethtypes "github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/eth/types"
@@ -55,6 +56,9 @@ var _ rpcclient.Interface = &InterfaceMock{}
 //			TransactionReceiptWithBlockNumberFunc: func(ctx context.Context, hash common.Hash) (*rpcclient.RPCTransactionReceipt, error) {
 //				panic("mock out the TransactionReceiptWithBlockNumber method")
 //			},
+//			TransactionsFunc: func(blockTipHeight *big.Int, address common.Address, endBlock *big.Int, erc20Token *erc20.Token) ([]*accounts.TransactionData, error) {
+//				panic("mock out the Transactions method")
+//			},
 //		}
 //
 //		// use mockedInterface in code that requires rpcclient.Interface
@@ -91,6 +95,9 @@ type InterfaceMock struct {
 
 	// TransactionReceiptWithBlockNumberFunc mocks the TransactionReceiptWithBlockNumber method.
 	TransactionReceiptWithBlockNumberFunc func(ctx context.Context, hash common.Hash) (*rpcclient.RPCTransactionReceipt, error)
+
+	// TransactionsFunc mocks the Transactions method.
+	TransactionsFunc func(blockTipHeight *big.Int, address common.Address, endBlock *big.Int, erc20Token *erc20.Token) ([]*accounts.TransactionData, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -158,6 +165,17 @@ type InterfaceMock struct {
 			// Hash is the hash argument value.
 			Hash common.Hash
 		}
+		// Transactions holds details about calls to the Transactions method.
+		Transactions []struct {
+			// BlockTipHeight is the blockTipHeight argument value.
+			BlockTipHeight *big.Int
+			// Address is the address argument value.
+			Address common.Address
+			// EndBlock is the endBlock argument value.
+			EndBlock *big.Int
+			// Erc20Token is the erc20Token argument value.
+			Erc20Token *erc20.Token
+		}
 	}
 	lockBalance                           sync.RWMutex
 	lockBlockNumber                       sync.RWMutex
@@ -169,6 +187,7 @@ type InterfaceMock struct {
 	lockSuggestGasPrice                   sync.RWMutex
 	lockTransactionByHash                 sync.RWMutex
 	lockTransactionReceiptWithBlockNumber sync.RWMutex
+	lockTransactions                      sync.RWMutex
 }
 
 // Balance calls BalanceFunc.
@@ -516,5 +535,49 @@ func (mock *InterfaceMock) TransactionReceiptWithBlockNumberCalls() []struct {
 	mock.lockTransactionReceiptWithBlockNumber.RLock()
 	calls = mock.calls.TransactionReceiptWithBlockNumber
 	mock.lockTransactionReceiptWithBlockNumber.RUnlock()
+	return calls
+}
+
+// Transactions calls TransactionsFunc.
+func (mock *InterfaceMock) Transactions(blockTipHeight *big.Int, address common.Address, endBlock *big.Int, erc20Token *erc20.Token) ([]*accounts.TransactionData, error) {
+	if mock.TransactionsFunc == nil {
+		panic("InterfaceMock.TransactionsFunc: method is nil but Interface.Transactions was just called")
+	}
+	callInfo := struct {
+		BlockTipHeight *big.Int
+		Address        common.Address
+		EndBlock       *big.Int
+		Erc20Token     *erc20.Token
+	}{
+		BlockTipHeight: blockTipHeight,
+		Address:        address,
+		EndBlock:       endBlock,
+		Erc20Token:     erc20Token,
+	}
+	mock.lockTransactions.Lock()
+	mock.calls.Transactions = append(mock.calls.Transactions, callInfo)
+	mock.lockTransactions.Unlock()
+	return mock.TransactionsFunc(blockTipHeight, address, endBlock, erc20Token)
+}
+
+// TransactionsCalls gets all the calls that were made to Transactions.
+// Check the length with:
+//
+//	len(mockedInterface.TransactionsCalls())
+func (mock *InterfaceMock) TransactionsCalls() []struct {
+	BlockTipHeight *big.Int
+	Address        common.Address
+	EndBlock       *big.Int
+	Erc20Token     *erc20.Token
+} {
+	var calls []struct {
+		BlockTipHeight *big.Int
+		Address        common.Address
+		EndBlock       *big.Int
+		Erc20Token     *erc20.Token
+	}
+	mock.lockTransactions.RLock()
+	calls = mock.calls.Transactions
+	mock.lockTransactions.RUnlock()
 	return calls
 }

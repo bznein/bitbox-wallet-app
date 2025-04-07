@@ -18,6 +18,7 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/eth/erc20"
 	ethtypes "github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/eth/types"
 	"github.com/ethereum/go-ethereum"
@@ -53,6 +54,11 @@ type Interface interface {
 	SuggestGasPrice(ctx context.Context) (*big.Int, error)
 	// FeeTargets returns EIP-1559 compatible priorities (maxFeePerGas + baseFee)
 	FeeTargets(ctx context.Context) ([]*ethtypes.FeeTarget, error)
+	// Transactions returns the list of transactions for a given address.
+	Transactions(
+		blockTipHeight *big.Int,
+		address common.Address, endBlock *big.Int, erc20Token *erc20.Token) (
+		[]*accounts.TransactionData, error)
 }
 
 // RPCTransactionReceipt is a receipt extended with the block number.

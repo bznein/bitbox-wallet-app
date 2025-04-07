@@ -40,7 +40,6 @@ func (s *testSuite) SetupTest() {
 		params.MainnetChainConfig,
 		"",
 		nil,
-		nil,
 	)
 
 	s.ERC20Coin = NewCoin(
@@ -51,7 +50,6 @@ func (s *testSuite) SetupTest() {
 		"ETH",
 		params.MainnetChainConfig,
 		"",
-		nil,
 		erc20.NewToken("0x0000000000000000000000000000000000000001", 12),
 	)
 }

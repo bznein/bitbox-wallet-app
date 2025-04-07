@@ -246,16 +246,6 @@ func (e environment) OnAuthSettingChanged(bool) {}
 
 func (e environment) BluetoothConnect(string) {}
 
-type mockTransactionsSource struct {
-}
-
-func (m *mockTransactionsSource) Transactions(
-	blockTipHeight *big.Int,
-	address common.Address, endBlock *big.Int, erc20Token *erc20.Token) (
-	[]*accounts.TransactionData, error) {
-	return []*accounts.TransactionData{}, nil
-}
-
 func newBackend(t *testing.T, testing, regtest bool) *Backend {
 	t.Helper()
 	b, err := NewBackend(
@@ -313,8 +303,10 @@ func newBackend(t *testing.T, testing, regtest bool) *Backend {
 			PendingNonceAtFunc: func(ctx context.Context, account common.Address) (uint64, error) {
 				return 0, nil
 			},
+			TransactionsFunc: func(blockTipHeight *big.Int, address common.Address, endBlock *big.Int, erc20Token *erc20.Token) ([]*accounts.TransactionData, error) {
+				return nil, nil
+			},
 		})
-		c.(*eth.Coin).TstSetTransactionsSource(&mockTransactionsSource{})
 	}
 	require.NoError(t, err)
 	return b

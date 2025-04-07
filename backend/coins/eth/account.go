@@ -344,15 +344,13 @@ func (account *Account) update() error {
 	}
 	account.blockNumber = blockNumber
 
-	transactionsSource := account.coin.TransactionsSource()
-
 	go account.updateOutgoingTransactions(account.blockNumber.Uint64())
 
 	// Get confirmed transactions.
 	var confirmedTansactions []*accounts.TransactionData
-	if transactionsSource != nil {
+	if account.coin.client != nil {
 		var err error
-		confirmedTansactions, err = transactionsSource.Transactions(
+		confirmedTansactions, err = account.coin.client.Transactions(
 			account.blockNumber,
 			account.address.Address, account.blockNumber, account.coin.erc20Token)
 		if err != nil {

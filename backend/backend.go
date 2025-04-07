@@ -523,19 +523,16 @@ func (backend *Backend) Coin(code coinpkg.Code) (coinpkg.Coin, error) {
 		etherScan := etherscan.NewEtherScan("https://api.etherscan.io/api", backend.etherScanHTTPClient)
 		coin = eth.NewCoin(etherScan, code, "Ethereum", "ETH", "ETH", params.MainnetChainConfig,
 			"https://etherscan.io/tx/",
-			etherScan,
 			nil)
 	case code == coinpkg.CodeSEPETH:
 		etherScan := etherscan.NewEtherScan("https://api-sepolia.etherscan.io/api", backend.etherScanHTTPClient)
 		coin = eth.NewCoin(etherScan, code, "Ethereum Sepolia", "SEPETH", "SEPETH", params.SepoliaChainConfig,
 			"https://sepolia.etherscan.io/tx/",
-			etherScan,
 			nil)
 	case erc20Token != nil:
 		etherScan := etherscan.NewEtherScan("https://api.etherscan.io/api", backend.etherScanHTTPClient)
 		coin = eth.NewCoin(etherScan, erc20Token.code, erc20Token.name, erc20Token.unit, "ETH", params.MainnetChainConfig,
 			"https://etherscan.io/tx/",
-			etherScan,
 			erc20Token.token,
 		)
 	default:

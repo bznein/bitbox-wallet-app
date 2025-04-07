@@ -24,6 +24,7 @@ import (
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts/errors"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/coin"
+	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/eth/erc20"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/eth/rpcclient/mocks"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/config"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/keystore"
@@ -80,8 +81,11 @@ func newAccount(t *testing.T) *Account {
 		PendingNonceAtFunc: func(ctx context.Context, account common.Address) (uint64, error) {
 			return 0, nil
 		},
+		TransactionsFunc: func(blockTipHeight *big.Int, address common.Address, endBlock *big.Int, erc20Token *erc20.Token) ([]*accounts.TransactionData, error) {
+			return nil, nil
+		},
 	}
-	coin := NewCoin(client, coin.CodeSEPETH, "Sepolia", "SEPETH", "SEPETH", params.SepoliaChainConfig, "", nil, nil)
+	coin := NewCoin(client, coin.CodeSEPETH, "Sepolia", "SEPETH", "SEPETH", params.SepoliaChainConfig, "", nil)
 	acct := NewAccount(
 		&accounts.AccountConfig{
 			Config: &config.Account{
