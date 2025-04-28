@@ -88,7 +88,7 @@ type Interface interface {
 	Balance() (*Balance, error)
 	// SendTx signs and sends the active tx proposal, set by TxProposal. Errors if none
 	// available.
-	SendTx(txNote string) error
+	SendTx(txNote string) (string, error)
 	FeeTargets() ([]FeeTarget, FeeTargetCode)
 	TxProposal(*TxProposalArgs) (coin.Amount, coin.Amount, coin.Amount, error)
 	// GetUnusedReceiveAddresses gets a list of list of receive addresses. The result can be one
