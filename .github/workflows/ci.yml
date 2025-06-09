@@ -92,7 +92,7 @@ jobs:
         id: upload-ai
         uses: actions/upload-artifact@v4
         with:
-          path: /github/home/go/src/github.com/BitBoxSwiss/bitbox-wallet-app/frontends/qt/build/linux/BitBoxApp-*.AppImage
+          path: ./frontends/qt/build/linux/BitBoxApp-*.AppImage
           name: BitBoxApp-linux-${{github.sha}}.AppImage
           if-no-files-found: error
       - name: Upload deb
