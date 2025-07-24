@@ -23,6 +23,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Process;
@@ -88,8 +90,26 @@ public class MainActivity extends AppCompatActivity {
     // Used by e.g. MoonPay's KYC forms.
     private ValueCallback<Uri[]> filePathCallback;
 
+    private Handler handler = new Handler(Looper.getMainLooper());
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback networkCallback;
+    private Runnable connectivityCheckRunnable;
+
+    private void scheduleConnectivityUpdate(final boolean isOnline) {
+        if (connectivityCheckRunnable != null) {
+            handler.removeCallbacks(connectivityCheckRunnable);
+        }
+
+        connectivityCheckRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    Mobileserver.setOnline(isOnline);
+                }
+    };
+
+    // Delay the update by 1 seconds to avoid flapping
+    handler.postDelayed(connectivityCheckRunnable, 2000);
+}
 
     private boolean hasInternetConnectivity(NetworkCapabilities capabilities) {
         // To avoid false positives, if we can't obtain connectivity info,
@@ -423,7 +443,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onCapabilitiesChanged(android.net.Network network, android.net.NetworkCapabilities capabilities) {
                 super.onCapabilitiesChanged(network, capabilities);
-                Mobileserver.setOnline(hasInternetConnectivity(capabilities));
+                Mobileserver.setOnline(scheduleConnectivityUpdate(hasInternetConnectivity(capabilities)));
             }
             // When we lose the network, onCapabilitiesChanged does not trigger, so we need to override onLost.
             @Override
