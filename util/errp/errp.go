@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package errp wraps the github.com/pkg/errors package, because its name clashes with the builtin
+// Package errp wraps the github.com/cockroachdb/errors package, because its name clashes with the builtin
 // errors package, which confuses the automatic imports tool goimports.
 package errp
 
 import (
-	"github.com/pkg/errors"
+	"github.com/cockroachdb/errors"
 )
 
 var (
