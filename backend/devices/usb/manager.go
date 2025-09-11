@@ -15,6 +15,7 @@
 package usb
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"regexp"
@@ -63,6 +64,10 @@ func isBitBox(deviceInfo DeviceInfo) bool {
 	return deviceInfo.VendorID() == bitboxVendorID && deviceInfo.ProductID() == bitboxProductID && (deviceInfo.UsagePage() == 0xffff || deviceInfo.Interface() == 0)
 }
 
+func isSimulator(deviceInfo DeviceInfo) bool {
+	return deviceInfo.Identifier() == "ID"
+}
+
 func isBitBox02(deviceInfo DeviceInfo) bool {
 	return (deviceInfo.Product() == bitbox02common.FirmwareDeviceProductStringBitBox02Multi ||
 		deviceInfo.Product() == bitbox02common.FirmwareDeviceProductStringBitBox02BTCOnly ||
@@ -99,6 +104,10 @@ type Manager struct {
 	socksProxy socksproxy.SocksProxy
 
 	log *logrus.Entry
+
+	// TODO move from here
+	// TestDevice is used to inject a device for testing purposes.
+	TestDevice *bitbox02.Device
 }
 
 // NewManager creates a new Manager. onRegister is called when a device has been
@@ -320,6 +329,9 @@ func (manager *Manager) listen() {
 					manager.log.WithError(err).Error("Failed to register bitbox")
 					continue
 				}
+			case isSimulator(deviceInfo):
+				device = manager.testDevice()
+				fmt.Println("Registered simulator device: %+v", device)
 			case isBitBox02(deviceInfo):
 				var err error
 				device, err = manager.makeBitBox02(deviceInfo)
@@ -343,6 +355,10 @@ func (manager *Manager) listen() {
 			}
 		}
 	}
+}
+
+func (manager *Manager) testDevice() *bitbox02.Device {
+	return manager.TestDevice
 }
 
 // Start listens for inserted/removed devices forever.

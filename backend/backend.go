@@ -661,6 +661,16 @@ func (backend *Backend) OnDeviceUninit(f func(string)) {
 	backend.onDeviceUninit = f
 }
 
+// SetTestDevice sets a test device to be used by the USB manager instead of real USB devices.
+func (backend *Backend) SetTestDevice(device *bitbox02.Device) {
+	backend.usbManager.TestDevice = device
+}
+
+// HasTestDevice returns whether a test device is set.
+func (backend *Backend) HasTestDevice() bool {
+	return backend.usbManager.TestDevice != nil
+}
+
 // Start starts the background services. It returns a channel of events to handle by the library
 // client.
 func (backend *Backend) Start() <-chan interface{} {

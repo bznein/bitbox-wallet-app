@@ -15,17 +15,22 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
+	"time"
 
 	backendPkg "github.com/BitBoxSwiss/bitbox-wallet-app/backend"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/arguments"
 	btctypes "github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/btc/types"
+	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/devices/bitbox02"
+	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/devices/bitbox02/simulator"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/devices/usb"
 	backendHandlers "github.com/BitBoxSwiss/bitbox-wallet-app/backend/handlers"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/util/config"
@@ -40,6 +45,7 @@ const (
 )
 
 var backend *backendPkg.Backend
+var simulatorPID int
 
 // webdevEnvironment implements backend.Environment.
 type webdevEnvironment struct {
@@ -69,7 +75,45 @@ func (webdevEnvironment) NotifyUser(text string) {
 
 // DeviceInfos implements backend.Environment.
 func (webdevEnvironment) DeviceInfos() []usb.DeviceInfo {
-	return usb.DeviceInfos()
+	if !backend.HasTestDevice() {
+		return usb.DeviceInfos()
+	}
+	if simulatorPID != 0 {
+		return []usb.DeviceInfo{simulator.DeviceInfo{}}
+	}
+	return []usb.DeviceInfo{}
+
+}
+
+// SimulatorPID finds the PID of a running simulator process by version.
+// Example: SimulatorPID("1.0.0") -> 2531523
+func SimulatorPID(version string) (int, error) {
+	// Run `pgrep -a -f simulator<version>`
+	cmd := exec.Command("pgrep", "-a", "-f", fmt.Sprintf("%s-simulator", version))
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return 0, fmt.Errorf("no simulator process found for version %s: %w", version, err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) == 0 {
+		return 0, fmt.Errorf("no simulator process found for version %s", version)
+	}
+	if len(lines) > 1 {
+		return 0, fmt.Errorf("expected one simulator process, found multiple:\n%s", out.String())
+	}
+
+	// First field is the PID
+	fields := strings.Fields(lines[0])
+	if len(fields) < 1 {
+		return 0, fmt.Errorf("unexpected pgrep output: %q", lines[0])
+	}
+	pid, err := strconv.Atoi(fields[0])
+	if err != nil {
+		return 0, fmt.Errorf("invalid PID in pgrep output: %v", err)
+	}
+	return pid, nil
 }
 
 // SystemOpen implements backend.Environment.
@@ -138,6 +182,8 @@ func main() {
 	devservers := flag.Bool("devservers", true, "switch to dev servers")
 	gapLimitsReceive := flag.Uint("gapLimitReceive", 0, "gap limit for receive addresses")
 	gapLimitsChange := flag.Uint("gapLimitChange", 0, "gap limit for change addresses")
+	simulatorPort := flag.Int("simulatorPort", -1, "port for the BitBox02 simulator")
+	simulatorVersion := flag.String("simulatorVersion", "", "version of the BitBox02 simulator")
 	flag.Parse()
 
 	var gapLimits *btctypes.GapLimits
@@ -161,6 +207,7 @@ func main() {
 	log.Info("--------------- Started application --------------")
 	// since we are in dev-mode, we can drop the authorization token
 	connectionData := backendHandlers.NewConnectionData(-1, "")
+
 	newBackend, err := backendPkg.NewBackend(
 		arguments.NewArguments(
 			config.AppDir(),
@@ -177,6 +224,34 @@ func main() {
 	handlers := backendHandlers.NewHandlers(backend, connectionData)
 	log.WithFields(logrus.Fields{"address": address, "port": port}).Info("Listening for HTTP")
 	fmt.Printf("Listening on: http://localhost:%d\n", port)
+
+	if *simulatorPort != -1 {
+		go func() {
+			for {
+				log.Info("Trying to connect to simulator...")
+				var err error
+				simulatorPID, err = SimulatorPID(*simulatorVersion)
+				if err != nil {
+					log.Info("No running simulator found")
+					backend.SetTestDevice(nil)
+					continue
+				}
+				if backend.HasTestDevice() {
+					continue
+				}
+
+				var device *bitbox02.Device
+				device, err = simulator.New(*simulatorPort, *simulatorVersion)
+				if err != nil {
+					log.WithError(err).Fatal("Could not start simulator")
+				}
+				backend.SetTestDevice(device)
+				log.WithField("simulatorPID", simulatorPID).Info("Connected to simulator")
+				time.Sleep(time.Millisecond * 50)
+			}
+		}()
+	}
+
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", address, port), handlers.Router); err != nil {
 		log.WithFields(logrus.Fields{"address": address, "port": port, "error": err.Error()}).Fatal("Failed to listen for HTTP")
 	}

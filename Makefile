@@ -37,6 +37,9 @@ servewallet-prodservers:
 	go run -mod=vendor ./cmd/servewallet -devservers=false
 servewallet-mainnet-prodservers:
 	go run -mod=vendor ./cmd/servewallet -mainnet -devservers=false
+# TODO argument
+servewallet-simulator:
+	go run -mod=vendor ./cmd/servewallet --simulatorPort=15423 --simulatorVersion=v9.24.0
 buildweb:
 	node --version
 	npm --version
