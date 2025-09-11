@@ -15,7 +15,6 @@
 package usb
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"regexp"
@@ -331,7 +330,6 @@ func (manager *Manager) listen() {
 				}
 			case isSimulator(deviceInfo):
 				device = manager.testDevice()
-				fmt.Println("Registered simulator device: %+v", device)
 			case isBitBox02(deviceInfo):
 				var err error
 				device, err = manager.makeBitBox02(deviceInfo)

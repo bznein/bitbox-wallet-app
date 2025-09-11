@@ -7,20 +7,18 @@ export default defineConfig({
   webServer: [
     {
       command: 'make -C ../.. webdev',
-      port: 8080, // adjust if frontend runs elsewhere
-      reuseExistingServer: !process.env.CI,
+      port: 8080,
+      reuseExistingServer: true,
     },
   ],
   timeout: 120_000,
   use: {
     baseURL: 'http://localhost:8080',
-    // headless: true,
-    headless: false,
+    headless: true,
     video: 'retain-on-failure',
-    screenshot: 'only-on-failure', // optional, capture screenshots on failures
-    trace: 'retain-on-failure',     // optional, trace for debuggin
-    launchOptions: {
-        slowMo: 1000, // slows down all actions by 200ms
-    },
+    screenshot: 'only-on-failure', 
+    trace: 'retain-on-failure',
   },
+  reporter: [['html', { open: 'never' }], ['list']],
+  outputDir: 'test-results/',
 });

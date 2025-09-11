@@ -92,6 +92,7 @@ export const WatchonlySetting = ({ keystore }: Props) => {
             {t('newSettings.appearance.remebmerWallet.name')}
           </span>
           <Toggle
+            data-testid="watchonly-toggle"
             checked={watchonly}
             disabled={disabled}
             onChange={toggleWatchonly}

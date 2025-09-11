@@ -16,11 +16,14 @@
 
 import style from './toggle.module.css';
 
-export type TToggleProps = JSX.IntrinsicElements['input']
+export interface TToggleProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  'data-testid'?: string; // optional
+}
 
 export const Toggle = (
   {
     className = '',
+    'data-testid': dataTestId,
     ...props
   }: TToggleProps
 ) => {
@@ -29,7 +32,7 @@ export const Toggle = (
       <input
         type="checkbox"
         {...props} />
-      <span className={style.slider}></span>
+      <span className={style.slider} data-testid={dataTestId} ></span>
     </label>
   );
 };

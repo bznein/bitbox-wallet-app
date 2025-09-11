@@ -14,7 +14,7 @@
 # limitations under the License.
 
 dev:
-	npm start
+	npm start --debug
 lint:
 	npm run lint
 fix:

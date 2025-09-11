@@ -228,7 +228,6 @@ func main() {
 	if *simulatorPort != -1 {
 		go func() {
 			for {
-				log.Info("Trying to connect to simulator...")
 				var err error
 				simulatorPID, err = SimulatorPID(*simulatorVersion)
 				if err != nil {

@@ -3,13 +3,36 @@ import { completeWalletCreation } from './helpers/create-wallet';
 import { spawn, execSync, ChildProcessWithoutNullStreams } from 'child_process';
 import fs from "fs";
 import path from "path";
+import net from 'net';
 
+async function waitForPort(port: number, host = '127.0.0.1', timeout = 180000) {
+  const start = Date.now();
+
+  while (Date.now() - start < timeout) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const socket = new net.Socket();
+        socket.once('error', reject);
+        socket.once('connect', () => {
+          socket.end();
+          resolve();
+        });
+        socket.connect(port, host);
+      });
+      return; // port is open
+    } catch {
+      await new Promise(r => setTimeout(r, 200)); // retry after 200ms
+    }
+  }
+
+  throw new Error(`Timeout waiting for port ${port}`);
+}
 // Enable video for this test
 test.use({ video: 'on' });
 
 function startSimulator(): ChildProcessWithoutNullStreams {
   const proc = spawn(
-    '/home/bznein/Shift/BitBoxSwiss/fork/bitbox02-firmware/build-build-noasan/bin/bitbox02-multi-v9.24.0-simulator1.0.0-linux-adm64',
+    '/tmp/bitbox02-multi-v9.24.0-simulator1.0.0-linux-amd64',
     {
       stdio: "inherit",
       env: {
@@ -44,6 +67,20 @@ async function cleanupFakeMemoryFiles() {
   }
 }
 
+
+test.beforeEach(async ({ page }) => {
+  // Log all console messages from the page
+  page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+
+  // Log unhandled errors
+  page.on('pageerror', err => console.error('PAGE ERROR:', err));
+
+  // Log failed network requests
+  page.on('requestfailed', request =>
+    console.error(`Request failed: ${request.url()} - ${request.failure()?.errorText}`)
+  );
+});
+
 test('toggle watch-only and disconnect test wallet', async ({ page }) => {
   let simulatorProcess: ChildProcessWithoutNullStreams;
 
@@ -59,7 +96,8 @@ test('toggle watch-only and disconnect test wallet', async ({ page }) => {
 
   await test.step('Start servewallet', async () => {
     startServeWallet();
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Wait until port 8082 is listening
+    await waitForPort(8082);
     console.log('Servewallet started');
   });
 
