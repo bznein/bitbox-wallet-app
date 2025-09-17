@@ -1,0 +1,4 @@
+Target dependency graph (2 targets)
+Target 'WebDriverAgentRunner' in project 'WebDriverAgent'
+➜ Explicit dependency on target 'WebDriverAgentLib' in project 'WebDriverAgent'
+Target 'WebDriverAgentLib' in project 'WebDriverAgent' (no dependencies)
