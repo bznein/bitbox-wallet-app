@@ -11,3 +11,4 @@ build:
 	${MAKE} prepare
 	xcodebuild clean build -project BitBoxApp/BitBoxApp.xcodeproj -scheme BitBoxApp -configuration Release -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO
 	xcodebuild clean build -project BitBoxApp/BitBoxApp.xcodeproj -scheme "BitBoxApp Testnet" -configuration Release -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO
+	xcodebuild clean build -project BitBoxApp/BitBoxApp.xcodeproj -scheme "BitBoxApp Testnet" -configuration Release -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=17.5' CODE_SIGNING_ALLOWED=NO
