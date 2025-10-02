@@ -241,10 +241,89 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
+
       - name: Build iOS app
         run: |
           make gomobileinit
           (cd $GOPATH/$GO_SRC_DIR; make ios)
+
+      - name: Find .app artifact
+        id: find_app
+        run: |
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData/ -type d -name "BitBoxApp Testnet.app" -path "*Release-iphonesimulator*" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: .app not found"
+            exit 1
+          fi
+          echo "Found .app at $APP_PATH"
+          echo "app_path=$APP_PATH" >> $GITHUB_OUTPUT
+
+      - name: Zip .app bundle
+        env:
+          APP_PATH: ${{ steps.find_app.outputs.app_path }}
+        run: |
+          cd "$(dirname "$APP_PATH")"
+          zip -r "$GITHUB_WORKSPACE/BitBoxApp-Testnet.zip" "BitBoxApp Testnet.app"
+
+      - name: Upload .app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BitBoxApp-Testnet
+          path: BitBoxApp-Testnet.zip
+          if-no-files-found: error
+
+
+  e2e-ios:
+    name: iOS E2E Tests
+    needs: ios
+    runs-on: macos-14
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download .app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: BitBoxApp-Testnet
+          path: ./artifacts
+
+      - name: Unzip .app bundle
+        run: |
+          cd artifacts
+          unzip BitBoxApp-Testnet.zip
+
+      # - name: Setup tmate session
+      #   uses: mxschmitt/action-tmate@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: frontends/tests
+        run: npm ci
+
+      - name: Install Appium & drivers
+        run: |
+          npm install -g appium
+          appium driver install xcuitest
+
+
+      - name: Boot iOS Simulator
+        run: |
+          xcrun simctl boot "iPhone 15"
+          xcrun simctl bootstatus "iPhone 15" -b
+
+      - name: Run iOS tests
+        working-directory: frontends/tests
+        env:
+          PLATFORM: iOS
+          IOS_APP_PATH: "${{ github.workspace }}/artifacts/BitBoxApp Testnet.app"
+        run: |
+          ls /Applications | grep Xcode
+          ./run.sh
   windows:
     runs-on: windows-2022
     outputs:
