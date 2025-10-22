@@ -59,6 +59,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
+            ~/.gradle/wrapper/dists
       - name: Build Android
         run: ./scripts/github-ci.sh android
         env:
