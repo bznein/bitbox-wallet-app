@@ -18,7 +18,6 @@ export default defineConfig({
     },
   ],
   timeout: 120_000,
-  workers: 1, // Tests are not parallel-safe yet.
   use: {
     baseURL: `http://${HOST}:${FRONTEND_PORT}`,
     headless: true,
