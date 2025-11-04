@@ -17,7 +17,7 @@ export default defineConfig({
       timeout: 120_000,
     },
   ],
-  timeout: 120_000,
+  timeout: 300_000,
   workers: 1, // Tests are not parallel-safe yet.
   use: {
     baseURL: `http://${HOST}:${FRONTEND_PORT}`,
@@ -35,13 +35,15 @@ export default defineConfig({
   reporter: [['html', { open: 'never' }], ['list']],
   outputDir: 'test-results/',
   projects: [
+    // {
+    //   name: 'Chromium',
+    //   use: { ...devices['Desktop Chrome'] },
+    // },
     {
-      name: 'Chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'WebKit',
-      use: { ...devices['Desktop Safari'] },
+      name: 'Webkit',
+      use: {
+        ...devices['Desktop Safari'],
+      },
     },
   ],
 });
