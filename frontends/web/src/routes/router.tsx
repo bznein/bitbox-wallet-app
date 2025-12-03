@@ -12,6 +12,7 @@ import { Pocket } from './market/pocket';
 import { BTCDirect } from './market/btcdirect';
 import { BTCDirectOTC } from './market/btcdirect-otc';
 import { Bitrefill } from './market/bitrefill';
+import { Swap } from './market/swap/swap';
 import { Info } from './account/info/info';
 import { XPubDetail } from './account/info/xpub-detail';
 import { Receive } from './account/receive/receive';
@@ -196,6 +197,12 @@ export const AppRouter = ({ devices, devicesKey, accounts, activeAccounts }: TAp
       region={''} />
   </InjectParams>);
 
+  const SwapEl = (<InjectParams>
+    <Swap
+      code={''}
+      accounts={activeAccounts} />
+  </InjectParams>);
+
   const MarketEl = (<InjectParams>
     <Market
       accounts={activeAccounts}
@@ -302,6 +309,8 @@ export const AppRouter = ({ devices, devicesKey, accounts, activeAccounts }: TAp
           <Route path="pocket/sell/:code/:region" element={PocketSellEl} />
           <Route path="select/:code" element={MarketEl} />
           <Route path="btcdirect-otc" element={<BTCDirectOTC/>} />
+          <Route path="swap" element={SwapEl} />
+          <Route path="swap/:code" element={SwapEl} />
         </Route>
         <Route path="manage-backups/:deviceID" element={ManageBackupsEl} />
         <Route path="accounts/select-receive" element={ReceiveAccountsSelectorEl} />
