@@ -141,6 +141,7 @@ export const GroupedAccountSelector = ({
         <h1 className="title text-center">{title}</h1>
       )}
       <Dropdown<AccountCode, false, TGroupAccountSelector, TOptionAccountSelector>
+      <Dropdown<AccountCode, false, TGroupAccountSelector, TOptionAccountSelector>
         className={styles.select}
         classNamePrefix="react-select"
         options={options}
@@ -159,6 +160,7 @@ export const GroupedAccountSelector = ({
         renderTrigger={renderTrigger}
       />
       {onProceed && (
+        <div className={styles.buttons}>
         <div className={styles.buttons}>
           <Button
             primary
