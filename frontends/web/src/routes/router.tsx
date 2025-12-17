@@ -138,7 +138,6 @@ export const AppRouter = ({ devices, devicesKey, accounts, activeAccounts }: TAp
       code={''}
       accounts={activeAccounts} />
   </InjectParams>);
-
   const BitsuranceAccountEl = (<InjectParams>
     <BitsuranceAccount
       code={''}
@@ -295,6 +294,8 @@ export const AppRouter = ({ devices, devicesKey, accounts, activeAccounts }: TAp
             <Route index element={MarketInfoEl} />
             <Route path=":code" element={MarketInfoEl} />
           </Route>
+          <Route path="select" element={MarketEl} />
+          <Route path="select/:code" element={MarketEl} />
           <Route path="btcdirect/buy/:code" element={BTCDirectBuyEl} />
           <Route path="btcdirect/buy/:code/:region" element={BTCDirectBuyEl} />
           <Route path="btcdirect/sell/:code" element={BTCDirectSellEl} />
@@ -307,7 +308,6 @@ export const AppRouter = ({ devices, devicesKey, accounts, activeAccounts }: TAp
           <Route path="pocket/buy/:code/:region" element={PocketBuyEl} />
           <Route path="pocket/sell/:code" element={PocketSellEl} />
           <Route path="pocket/sell/:code/:region" element={PocketSellEl} />
-          <Route path="select/:code" element={MarketEl} />
           <Route path="btcdirect-otc" element={<BTCDirectOTC/>} />
           <Route path="swap" element={SwapEl} />
           <Route path="swap/:code" element={SwapEl} />
