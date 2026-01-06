@@ -83,6 +83,10 @@ type Keystore struct {
 	// this field yet but it may be helpful in the future if we want to remind users to connect
 	// their device, e.g. to check that they still know their device password.
 	LastConnected time.Time `json:"lastConnected"`
+	// BackupReminderBaselineSet is true once the initial reminder baseline is captured.
+	BackupReminderBaselineSet bool `json:"backupReminderBaselineSet,omitempty"`
+	// BackupReminderSuppressed disables the reminder for keystores that already exceeded the threshold.
+	BackupReminderSuppressed bool `json:"backupReminderSuppressed,omitempty"`
 }
 
 // AccountsConfig persists the list of accounts added to the app.

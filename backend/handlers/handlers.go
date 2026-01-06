@@ -1585,7 +1585,7 @@ func (handlers *Handlers) getOnline(r *http.Request) interface{} {
 }
 
 func (handlers *Handlers) getKeystoreShowBackupBanner(r *http.Request) interface{} {
-	rootFingerint := mux.Vars(r)["rootFingerprint"]
+	rootFingerprint := mux.Vars(r)["rootFingerprint"]
 
 	type response struct {
 		Success   bool   `json:"success"`
@@ -1610,26 +1610,65 @@ func (handlers *Handlers) getKeystoreShowBackupBanner(r *http.Request) interface
 		defaultFiat = "USD"
 	}
 
-	accounts, ok := keystoresAccounts[rootFingerint]
+	accounts, ok := keystoresAccounts[rootFingerprint]
 	if !ok {
-		handlers.log.WithField("fingerprint", rootFingerint).Error("No accounts found for the given root fingerprint")
+		handlers.log.WithField("fingerprint", rootFingerprint).Error("No accounts found for the given root fingerprint")
 		return response{
 			Success: false,
 		}
 	}
-	balance, _, err := handlers.backend.AccountsFiatAndCoinBalance(accounts, defaultFiat)
+	if len(accounts) == 0 {
+		handlers.log.WithField("fingerprint", rootFingerprint).Error("No accounts found for the given root fingerprint")
+		return response{
+			Success: false,
+		}
+	}
+	rootFingerprintBytes, err := hex.DecodeString(rootFingerprint)
 	if err != nil {
-		handlers.log.WithError(err).Error("Could not retrieve fiat balance for account")
+		handlers.log.WithError(err).Error("Could not decode root fingerprint")
+		return response{
+			Success: false,
+		}
+	}
+	keystoreConfig, err := handlers.backend.Config().AccountsConfig().LookupKeystore(rootFingerprintBytes)
+	if err != nil {
+		handlers.log.WithError(err).Error("Could not retrieve keystore config for root fingerprint")
 		return response{
 			Success: false,
 		}
 	}
 
 	threshold := big.NewRat(1000, 1)
+	currentBalance, _, err := handlers.backend.AccountsFiatAndCoinBalance(accounts, defaultFiat)
+	if err != nil {
+		handlers.log.WithError(err).Error("Could not retrieve balance for keystore")
+		return response{
+			Success: false,
+		}
+	}
+
+	suppressed := keystoreConfig.BackupReminderSuppressed
+	if !keystoreConfig.BackupReminderBaselineSet {
+		shouldSuppress := currentBalance.Cmp(threshold) > 0
+		if err := handlers.backend.Config().ModifyAccountsConfig(func(accountsConfig *config.AccountsConfig) error {
+			configKeystore, err := accountsConfig.LookupKeystore(rootFingerprintBytes)
+			if err != nil {
+				return err
+			}
+			configKeystore.BackupReminderBaselineSet = true
+			if shouldSuppress {
+				configKeystore.BackupReminderSuppressed = true
+			}
+			return nil
+		}); err != nil {
+			handlers.log.WithError(err).Error("Could not persist backup reminder baseline")
+		}
+		suppressed = shouldSuppress
+	}
 
 	return response{
 		Success:   true,
-		Show:      balance.Cmp(threshold) > 0,
+		Show:      !suppressed && currentBalance.Cmp(threshold) > 0,
 		Fiat:      defaultFiat,
 		Threshold: coin.FormatAsCurrency(threshold, defaultFiat),
 	}
