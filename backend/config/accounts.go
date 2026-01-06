@@ -27,6 +27,8 @@ type Account struct {
 	// and not be shown in 'Manage accounts', because the account is unused (has no transaction
 	// history). This is used to facilitate automatic discovery of used accounts.
 	HiddenBecauseUnused bool `json:"hiddenBecauseUnused"`
+	// BackupReminderLastProcessedReceiveTxID tracks the newest confirmed receive tx processed.
+	BackupReminderLastProcessedReceiveTxID string `json:"backupReminderLastProcessedReceiveTxID,omitempty"`
 	// Watch indicates if the account should be loaded even if its keystore is not connected.
 	//
 	// If false, the account is only displayed if the keystore is connected. If true, it is loaded

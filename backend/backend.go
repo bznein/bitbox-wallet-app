@@ -346,6 +346,7 @@ func (backend *Backend) configureHistoryExchangeRates() {
 }
 
 func (backend *Backend) notifyNewTxs(account accounts.Interface) {
+	backend.maybeTriggerBackupReminder(account)
 	notifier := account.Notifier()
 	if notifier == nil {
 		return
@@ -369,6 +370,255 @@ func (backend *Backend) notifyNewTxs(account accounts.Interface) {
 			backend.log.WithError(err).Error("error marking notified")
 		}
 	}
+}
+
+func backupReminderFiatUnit(defaultFiat string) string {
+	if !slices.Contains([]string{"USD", "CHF", "EUR"}, defaultFiat) {
+		return "USD"
+	}
+	return defaultFiat
+}
+
+func backupReminderThreshold() *big.Rat {
+	return big.NewRat(1000, 1)
+}
+
+func (backend *Backend) keystoreBackupReminderTriggered(rootFingerprint []byte) bool {
+	keystoreConfig, err := backend.config.AccountsConfig().LookupKeystore(rootFingerprint)
+	if err != nil {
+		return false
+	}
+	return keystoreConfig.BackupReminderTriggered
+}
+
+func (backend *Backend) keystoreBackupReminderBaselineState(rootFingerprint []byte) (bool, bool) {
+	keystoreConfig, err := backend.config.AccountsConfig().LookupKeystore(rootFingerprint)
+	if err != nil {
+		return false, false
+	}
+	return keystoreConfig.BackupReminderBaselineSet, keystoreConfig.BackupReminderSuppressed
+}
+
+func (backend *Backend) setKeystoreBackupReminderTriggered(rootFingerprint []byte) error {
+	return backend.config.ModifyAccountsConfig(func(accountsConfig *config.AccountsConfig) error {
+		keystoreConfig, err := accountsConfig.LookupKeystore(rootFingerprint)
+		if err != nil {
+			return err
+		}
+		keystoreConfig.BackupReminderTriggered = true
+		return nil
+	})
+}
+
+func (backend *Backend) setKeystoreBackupReminderBaseline(rootFingerprint []byte, suppress bool) error {
+	return backend.config.ModifyAccountsConfig(func(accountsConfig *config.AccountsConfig) error {
+		keystoreConfig, err := accountsConfig.LookupKeystore(rootFingerprint)
+		if err != nil {
+			return err
+		}
+		if !keystoreConfig.BackupReminderBaselineSet {
+			keystoreConfig.BackupReminderBaselineSet = true
+		}
+		if suppress {
+			keystoreConfig.BackupReminderSuppressed = true
+		}
+		return nil
+	})
+}
+
+func (backend *Backend) accountBackupReminderLastProcessedReceiveTxID(account accounts.Interface) string {
+	accountConfig := backend.config.AccountsConfig().Lookup(account.Config().Config.Code)
+	if accountConfig == nil {
+		return ""
+	}
+	return accountConfig.BackupReminderLastProcessedReceiveTxID
+}
+
+func (backend *Backend) setAccountBackupReminderLastProcessedReceiveTxID(
+	account accounts.Interface,
+	txID string,
+) error {
+	if txID == "" {
+		return nil
+	}
+	accountCode := account.Config().Config.Code
+	return backend.config.ModifyAccountsConfig(func(accountsConfig *config.AccountsConfig) error {
+		accountConfig := accountsConfig.Lookup(accountCode)
+		if accountConfig == nil {
+			return errp.Newf("could not retrieve account config for backup reminder: %s", accountCode)
+		}
+		accountConfig.BackupReminderLastProcessedReceiveTxID = txID
+		return nil
+	})
+}
+
+func (backend *Backend) maybeTriggerBackupReminder(account accounts.Interface) {
+	rootFingerprint, err := account.Config().Config.SigningConfigurations.RootFingerprint()
+	if err != nil {
+		backend.log.WithError(err).Error("could not read root fingerprint for backup reminder")
+		return
+	}
+	if backend.keystoreBackupReminderTriggered(rootFingerprint) {
+		return
+	}
+	baselineSet, suppressed := backend.keystoreBackupReminderBaselineState(rootFingerprint)
+	if suppressed {
+		return
+	}
+	accountsByKeystore, err := backend.AccountsByKeystore()
+	if err != nil {
+		backend.log.WithError(err).Error("could not load accounts by keystore for backup reminder")
+		return
+	}
+	keystoreAccounts, ok := accountsByKeystore[hex.EncodeToString(rootFingerprint)]
+	if !ok || len(keystoreAccounts) == 0 {
+		return
+	}
+
+	incomingByCoin := map[coinpkg.Code]*big.Int{}
+	for _, acct := range keystoreAccounts {
+		lastProcessedID := backend.accountBackupReminderLastProcessedReceiveTxID(acct)
+		accountIncoming, latestConfirmedID, err := backend.incomingConfirmedBackupReminderAmounts(
+			acct,
+			baselineSet,
+			lastProcessedID,
+		)
+		if err != nil {
+			backend.log.WithError(err).WithField("account", acct.Config().Config.Code).
+				Error("could not read confirmed incoming txs for backup reminder")
+			continue
+		}
+		if latestConfirmedID != "" && latestConfirmedID != lastProcessedID {
+			if err := backend.setAccountBackupReminderLastProcessedReceiveTxID(
+				acct,
+				latestConfirmedID,
+			); err != nil {
+				backend.log.WithError(err).WithField("account", acct.Config().Config.Code).
+					Error("could not persist backup reminder tx cursor")
+			}
+		}
+		for coinCode, amount := range accountIncoming {
+			if amount == nil || amount.Sign() == 0 {
+				continue
+			}
+			if incomingByCoin[coinCode] == nil {
+				incomingByCoin[coinCode] = new(big.Int)
+			}
+			incomingByCoin[coinCode].Add(incomingByCoin[coinCode], amount)
+		}
+	}
+
+	fiatUnit := backupReminderFiatUnit(backend.Config().AppConfig().Backend.MainFiat)
+	currentBalance, _, err := backend.AccountsFiatAndCoinBalance(keystoreAccounts, fiatUnit)
+	if err != nil {
+		backend.log.WithError(err).Error("could not load fiat balance for backup reminder")
+		return
+	}
+	threshold := backupReminderThreshold()
+
+	if !baselineSet {
+		suppress := currentBalance.Cmp(threshold) > 0
+		if err := backend.setKeystoreBackupReminderBaseline(rootFingerprint, suppress); err != nil {
+			backend.log.WithError(err).Error("could not persist backup reminder baseline")
+		}
+		if suppress {
+			return
+		}
+	}
+
+	if len(incomingByCoin) == 0 {
+		return
+	}
+
+	incomingFiatTotal, err := backend.incomingFiatForCoinAmounts(incomingByCoin, fiatUnit)
+	if err != nil {
+		backend.log.WithError(err).Error("could not compute incoming fiat total for backup reminder")
+		return
+	}
+	if incomingFiatTotal.Sign() == 0 {
+		return
+	}
+
+	balanceBefore := new(big.Rat).Sub(new(big.Rat).Set(currentBalance), incomingFiatTotal)
+	if currentBalance.Cmp(threshold) > 0 && balanceBefore.Cmp(threshold) <= 0 {
+		if err := backend.setKeystoreBackupReminderTriggered(rootFingerprint); err != nil {
+			backend.log.WithError(err).Error("could not persist backup reminder trigger")
+		}
+	}
+}
+
+func (backend *Backend) incomingConfirmedBackupReminderAmounts(
+	account accounts.Interface,
+	baselineSet bool,
+	lastProcessedID string,
+) (map[coinpkg.Code]*big.Int, string, error) {
+	transactions, err := account.Transactions()
+	if err != nil {
+		return nil, "", err
+	}
+
+	incoming := map[coinpkg.Code]*big.Int{}
+	coinCode := account.Coin().Code()
+	latestConfirmedID := ""
+	for _, tx := range transactions {
+		if tx.Type != accounts.TxTypeReceive || tx.Status != accounts.TxStatusComplete {
+			continue
+		}
+		if latestConfirmedID == "" {
+			latestConfirmedID = tx.TxID
+		}
+		if !baselineSet {
+			continue
+		}
+		if lastProcessedID != "" && txMatchesProcessedID(tx, lastProcessedID) {
+			break
+		}
+		if incoming[coinCode] == nil {
+			incoming[coinCode] = new(big.Int)
+		}
+		incoming[coinCode].Add(incoming[coinCode], tx.Amount.BigInt())
+	}
+	return incoming, latestConfirmedID, nil
+}
+
+func (backend *Backend) incomingFiatForCoinAmounts(
+	amounts map[coinpkg.Code]*big.Int,
+	fiatUnit string,
+) (*big.Rat, error) {
+	total := new(big.Rat)
+	for coinCode, amount := range amounts {
+		if amount == nil || amount.Sign() == 0 {
+			continue
+		}
+		coin, err := backend.Coin(coinCode)
+		if err != nil {
+			return nil, err
+		}
+		price, err := backend.RatesUpdater().LatestPriceForPair(coin.Unit(false), fiatUnit)
+		if err != nil {
+			return nil, err
+		}
+		coinDecimals := coinpkg.DecimalsExp(coin)
+		fiatValue := new(big.Rat).Mul(
+			new(big.Rat).SetFrac(amount, coinDecimals),
+			new(big.Rat).SetFloat64(price),
+		)
+		total.Add(total, fiatValue)
+	}
+	return total, nil
+}
+
+func txMatchesProcessedID(tx *accounts.TransactionData, processedID string) bool {
+	if tx == nil || processedID == "" {
+		return false
+	}
+	if strings.EqualFold(tx.TxID, processedID) {
+		return true
+	}
+	if tx.InternalID != "" && strings.EqualFold(tx.InternalID, processedID) {
+		return true
+	}
+	return false
 }
 
 // Config returns the app config.
