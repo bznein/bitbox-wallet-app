@@ -390,7 +390,7 @@ func TestRegisterKeystore(t *testing.T) {
 	// Registering a new keystore persists a set of initial default accounts and the keystore.
 	b.registerKeystore(ks1)
 	require.Equal(t, ks1, b.Keystore())
-	checkShownAccountsLen(t, b, 3, 3)
+	checkShownAccountsLen(t, b, 5, 3)
 	require.NotNil(t, b.Config().AccountsConfig().Lookup("v0-55555555-btc-0"))
 	require.NotNil(t, b.Config().AccountsConfig().Lookup("v0-55555555-ltc-0"))
 	require.NotNil(t, b.Config().AccountsConfig().Lookup("v0-55555555-eth-0"))
@@ -418,13 +418,13 @@ func TestRegisterKeystore(t *testing.T) {
 	require.NoError(t, b.SetWatchonly(rootFingerprint1, true))
 
 	b.DeregisterKeystore()
-	checkShownAccountsLen(t, b, 3, 3)
+	checkShownAccountsLen(t, b, 5, 3)
 	require.Len(t, b.Config().AccountsConfig().Keystores, 1)
 
 	// Registering the same keystore again loads the previously persisted accounts and does not
 	// automatically persist more accounts.
 	b.registerKeystore(ks1)
-	checkShownAccountsLen(t, b, 3, 3)
+	checkShownAccountsLen(t, b, 5, 3)
 	require.Len(t, b.Config().AccountsConfig().Keystores, 1)
 
 	// Registering another keystore persists a set of initial default accounts and loads them.
@@ -432,7 +432,7 @@ func TestRegisterKeystore(t *testing.T) {
 	b.registerKeystore(ks2)
 	require.NoError(t, b.SetWatchonly(rootFingerprint2, true))
 
-	checkShownAccountsLen(t, b, 6, 6)
+	checkShownAccountsLen(t, b, 10, 6)
 	require.NotNil(t, b.Config().AccountsConfig().Lookup("v0-66666666-btc-0"))
 	require.NotNil(t, b.Config().AccountsConfig().Lookup("v0-66666666-ltc-0"))
 	require.NotNil(t, b.Config().AccountsConfig().Lookup("v0-66666666-eth-0"))
@@ -454,7 +454,7 @@ func TestRegisterKeystore(t *testing.T) {
 		return nil
 	}))
 	b.registerKeystore(ks1)
-	checkShownAccountsLen(t, b, 5, 6)
+	checkShownAccountsLen(t, b, 9, 6)
 	// v0-55555555-btc-0 loaded even though watch=false, as the keystore is connected.
 	require.NotNil(t, b.Accounts().lookup("v0-55555555-btc-0"))
 	require.NotNil(t, b.Accounts().lookup("v0-55555555-ltc-0"))
@@ -465,7 +465,7 @@ func TestRegisterKeystore(t *testing.T) {
 	require.NotNil(t, b.Accounts().lookup("v0-66666666-eth-0"))
 
 	b.DeregisterKeystore()
-	checkShownAccountsLen(t, b, 4, 6)
+	checkShownAccountsLen(t, b, 8, 6)
 	// v0-55555555-btc-0 not loaded (watch = false)
 	require.Nil(t, b.Accounts().lookup("v0-55555555-btc-0"))
 	require.NotNil(t, b.Accounts().lookup("v0-55555555-ltc-0"))
