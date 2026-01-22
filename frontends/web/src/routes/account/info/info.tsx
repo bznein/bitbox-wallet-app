@@ -52,7 +52,6 @@ export const Info = ({
   if (!account) {
     return null;
   }
-
   const handleExport = async () => {
     if (status === undefined || status.fatalError) {
       return;
