@@ -60,3 +60,81 @@ jobs:
         with:
           name: playwright-artifacts-and-logs
           path: frontends/web/test-results/*
+
+  sendbtc-matrix:
+    name: Send BTC (run ${{ matrix.run }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        run:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+          - 10
+          - 11
+          - 12
+          - 13
+          - 14
+          - 15
+          - 16
+          - 17
+          - 18
+          - 19
+          - 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download latest simulator from simulators.json
+        run: |
+          set -euo pipefail
+          simulator_url=$(jq -r '.[-1].url' backend/devices/bitbox02/testdata/simulators.json)
+          simulator_sha=$(jq -r '.[-1].sha256' backend/devices/bitbox02/testdata/simulators.json)
+          mkdir -p simulator-bin
+          curl -L "$simulator_url" -o simulator-bin/simulator
+          echo "$simulator_sha  simulator-bin/simulator" | sha256sum -c -
+          chmod +x simulator-bin/simulator
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          cd frontends/web
+          npm install
+
+      - name: Install Playwright browsers
+        run: |
+          cd frontends/web
+          npx playwright install --with-deps chromium webkit
+
+      - name: Setup Python 3
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install Python dependencies
+        run: |
+          pip install ecdsa bech32
+
+      - name: Run Send BTC Playwright test
+        env:
+          SIMULATOR_PATH: ${{ github.workspace }}/simulator-bin/simulator
+        run: |
+          cd frontends/web
+          npx playwright test tests/send.test.ts --grep "Send BTC"
+
+      - name: Upload Playwright artifacts and logs.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-send-btc-${{ matrix.run }}
+          path: frontends/web/test-results/*
