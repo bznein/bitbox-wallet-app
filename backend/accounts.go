@@ -1280,6 +1280,7 @@ outer:
 
 		backend.createAndAddAccount(coin, account)
 	}
+	backend.log.WithField("count", len(backend.accounts)).Info("initPersistedAccounts loaded accounts")
 }
 
 // persistDefaultAccountConfigs persists a bunch of default accounts for the connected keystore (not

@@ -34,6 +34,42 @@ import Mobileserver
 //   in any case.
 let scheme = "qrc"
 
+private let debugDateFormatter: ISO8601DateFormatter = {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter
+}()
+
+private func debugTimestamp() -> String {
+    return debugDateFormatter.string(from: Date())
+}
+
+private func debugLog(_ message: String) {
+#if DEBUG
+    print("iOSDebug \(debugTimestamp()) \(message)")
+#endif
+}
+
+final class MobileDebugTracker {
+    static let shared = MobileDebugTracker()
+    private let lock = NSLock()
+    private var calls: [Int: (endpoint: String, method: String, started: Date)] = [:]
+
+    func start(queryID: Int, endpoint: String, method: String) {
+        lock.lock()
+        calls[queryID] = (endpoint: endpoint, method: method, started: Date())
+        lock.unlock()
+    }
+
+    func finish(queryID: Int) -> (endpoint: String, method: String, duration: TimeInterval)? {
+        lock.lock()
+        let entry = calls.removeValue(forKey: queryID)
+        lock.unlock()
+        guard let entry else { return nil }
+        return (endpoint: entry.endpoint, method: entry.method, duration: Date().timeIntervalSince(entry.started))
+    }
+}
+
 class JavascriptBridge: NSObject, WKScriptMessageHandler {
     weak var webView: WKWebView?
     
@@ -41,6 +77,16 @@ class JavascriptBridge: NSObject, WKScriptMessageHandler {
         if message.name == "goCall", let body = message.body as? [String: AnyObject] {
             let queryID = body["queryID"] as! Int
             let query = body["query"] as! String
+            if let queryData = query.data(using: .utf8),
+               let queryJSON = try? JSONSerialization.jsonObject(with: queryData) as? [String: Any],
+               let endpoint = queryJSON["endpoint"] as? String,
+               let method = queryJSON["method"] as? String {
+                let trackedEndpoints = ["accounts", "devices/registered", "keystores"]
+                if trackedEndpoints.contains(endpoint) {
+                    MobileDebugTracker.shared.start(queryID: queryID, endpoint: endpoint, method: method)
+                    debugLog("goCall id=\(queryID) \(method) \(endpoint)")
+                }
+            }
             MobileserverBackendCall(queryID, query)
         } else if message.name == "appReady" {
             DispatchQueue.main.async {
@@ -62,12 +108,25 @@ struct MessageHandlers: MessageHandlersProtocol {
     
     func callResponseHandler(queryID: Int, response: String) {
         DispatchQueue.main.async {
+            if let entry = MobileDebugTracker.shared.finish(queryID: queryID) {
+                let ms = Int(entry.duration * 1000)
+                debugLog("goCall response id=\(queryID) \(entry.method) \(entry.endpoint) \(ms)ms")
+            }
             webView.evaluateJavaScript("window.onMobileCallResponse(\(queryID), \(response));")
         }
     }
     
     func pushNotificationHandler(msg: String) {
         DispatchQueue.main.async {
+            if let data = msg.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let subject = json["subject"] as? String {
+                let trackedSubjects = ["accounts", "keystores", "devices/registered", "bluetooth/state"]
+                if trackedSubjects.contains(subject) {
+                    let action = json["action"] as? String ?? "unknown"
+                    debugLog("pushNotify subject=\(subject) action=\(action)")
+                }
+            }
             webView.evaluateJavaScript("window.onMobilePushNotification && window.onMobilePushNotification(\(msg));")
         }
     }

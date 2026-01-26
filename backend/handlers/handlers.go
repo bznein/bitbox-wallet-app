@@ -682,6 +682,7 @@ func (handlers *Handlers) getAccounts(*http.Request) interface{} {
 
 		accounts = append(accounts, newAccountJSON(*keystore, account, activeTokens, keystoreConnected))
 	}
+	handlers.log.WithField("count", len(accounts)).Info("getAccounts")
 	return accounts
 }
 
