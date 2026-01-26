@@ -44,6 +44,7 @@ type TAppRouterProps = {
   accounts: TAccount[];
   activeAccounts: TAccount[];
   devicesKey: ((input: string) => string);
+  accountsLoaded: boolean;
 };
 
 type TInjectParamsProps = {
@@ -55,13 +56,14 @@ const InjectParams = ({ children }: TInjectParamsProps) => {
   return React.cloneElement(children as React.ReactElement, params);
 };
 
-export const AppRouter = ({ devices, devicesKey, accounts, activeAccounts }: TAppRouterProps) => {
+export const AppRouter = ({ devices, devicesKey, accounts, activeAccounts, accountsLoaded }: TAppRouterProps) => {
   const hasAccounts = accounts.length > 0;
   const Homepage = (<DeviceSwitch
     key={devicesKey('device-switch-default')}
     deviceID={null}
     devices={devices}
     hasAccounts={hasAccounts}
+    accountsLoaded={accountsLoaded}
   />);
 
   const Device = (<InjectParams>
@@ -70,6 +72,7 @@ export const AppRouter = ({ devices, devicesKey, accounts, activeAccounts }: TAp
       deviceID={null}
       devices={devices}
       hasAccounts={hasAccounts}
+      accountsLoaded={accountsLoaded}
     />
   </InjectParams>);
 

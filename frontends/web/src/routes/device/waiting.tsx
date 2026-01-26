@@ -23,7 +23,11 @@ import { OutlinedSettingsButton } from '@/components/settingsButton/outlined-set
 import { runningInIOS } from '@/utils/env';
 import style from './waiting.module.css';
 
-export const Waiting = () => {
+type TProps = {
+  accountsLoaded?: boolean;
+};
+
+export const Waiting = ({ accountsLoaded = true }: TProps) => {
   const { t } = useTranslation();
   const { isDarkMode } = useDarkmode();
   const navigate = useNavigate();
@@ -38,7 +42,9 @@ export const Waiting = () => {
     }
   }, [devices, navigate]);
 
-  const loadingAccounts = (keystores !== undefined && keystores.length) || (devices !== undefined && Object.keys(devices).length);
+  const loadingAccounts = !accountsLoaded
+    || (keystores !== undefined && keystores.length)
+    || (devices !== undefined && Object.keys(devices).length);
 
   if (loadingAccounts) {
     return (

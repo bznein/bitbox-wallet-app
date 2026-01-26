@@ -38,7 +38,9 @@ export const App = () => {
   useIgnoreDrop();
   useAppReady();
 
-  const accounts = useDefault(useSync(getAccounts, syncAccountsList), []);
+  const accountsResponse = useSync(getAccounts, syncAccountsList);
+  const accountsLoaded = accountsResponse !== undefined;
+  const accounts = useDefault(accountsResponse, []);
   const devices = useDefault(useSync(getDeviceList, syncDeviceList), {});
 
   const prevDevices = usePrevious(devices);
@@ -62,12 +64,12 @@ export const App = () => {
 
     // QT and Android start their apps in '/index.html' and '/android_asset/web/index.html' respectively
     // This re-routes them to '/' so we have a simpler uri structure
-    if (isIndex && currentURL !== '/' && (!accounts || accounts.length === 0)) {
+    if (accountsLoaded && isIndex && currentURL !== '/' && (!accounts || accounts.length === 0)) {
       navigate('/');
       return;
     }
     // if no accounts are registered on specified views route to /
-    if (accounts.length === 0 && (
+    if (accountsLoaded && accounts.length === 0 && (
       currentURL.startsWith('/account-summary')
       || currentURL.startsWith('/add-account')
       || currentURL.startsWith('/settings/manage-accounts')
@@ -100,33 +102,33 @@ export const App = () => {
       return;
     }
     // if on an account that isn't registered route to /
-    if (inAccounts && !accounts.some(account => currentURL.startsWith('/account/' + account.code))) {
+    if (accountsLoaded && inAccounts && !accounts.some(account => currentURL.startsWith('/account/' + account.code))) {
       navigate('/');
       return;
     }
     // if on index page and have at least 1 account, route to /account-summary
-    if (isIndex && accounts.length) {
+    if (accountsLoaded && isIndex && accounts.length) {
       // replace current history entry so that the user cannot go back to "index"
       navigate('/account-summary?with-chart-animation=true', { replace: true });
       return;
     }
     // if on the /market/ view and there are no accounts view route to /
-    if (accounts.length === 0 && currentURL.startsWith('/market/')) {
+    if (accountsLoaded && accounts.length === 0 && currentURL.startsWith('/market/')) {
       navigate('/');
       return;
     }
     // if on the /bitsurance/ view and there are no accounts view route to /
-    if (accounts.length === 0 && currentURL.startsWith('/bitsurance/')) {
+    if (accountsLoaded && accounts.length === 0 && currentURL.startsWith('/bitsurance/')) {
       navigate('/');
       return;
     }
     // if in no-accounts settings and has account go to manage-accounts
-    if (accounts.length && currentURL === '/settings/no-accounts') {
+    if (accountsLoaded && accounts.length && currentURL === '/settings/no-accounts') {
       navigate('/settings/manage-accounts');
       return;
     }
 
-  }, [accounts, deviceIDs, firstDevice, navigate]);
+  }, [accounts, accountsLoaded, deviceIDs, firstDevice, navigate]);
 
   useEffect(() => {
     const oldDeviceIDList = Object.keys(prevDevices || {});
@@ -200,6 +202,7 @@ export const App = () => {
             }
             <AppRouter
               accounts={accounts}
+              accountsLoaded={accountsLoaded}
               activeAccounts={activeAccounts}
               devices={devices}
               devicesKey={devicesKey}

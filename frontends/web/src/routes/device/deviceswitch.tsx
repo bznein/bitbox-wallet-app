@@ -10,13 +10,14 @@ type TProps = {
   devices: TDevices;
   deviceID: string | null;
   hasAccounts: boolean;
+  accountsLoaded: boolean;
 };
 
-const DeviceSwitch = ({ deviceID, devices, hasAccounts }: TProps) => {
+const DeviceSwitch = ({ deviceID, devices, hasAccounts, accountsLoaded }: TProps) => {
   const deviceIDs = Object.keys(devices);
 
   if (deviceID === null || !deviceIDs.includes(deviceID)) {
-    return <Waiting />;
+    return <Waiting accountsLoaded={accountsLoaded} />;
   }
 
   switch (devices[deviceID]) {
