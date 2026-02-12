@@ -21,7 +21,9 @@ import (
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/banners"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/btc"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/btc/addresses"
-	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/btc/blockchain"
+	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/b
+	
+	tc/blockchain"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/btc/electrum"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/btc/types"
 	coinpkg "github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/coin"
@@ -70,7 +72,10 @@ var fixedURLWhitelist = []string{
 	"https://mempool.space/tx/",
 	"https://mempool.space/testnet/tx/",
 	"https://sochain.com/tx/LTCTEST/",
-	"https://blockchair.com/litecoin/transaction/",
+	"https://blockchair.com/litecoin/
+	
+	
+	transaction/",
 	"https://etherscan.io/tx/",
 	"https://sepolia.etherscan.io/tx/",
 	// Moonpay onramp
@@ -128,6 +133,7 @@ type AuthResultType string
 const (
 	// authRequired is fired when we need the user to authenticate.
 	authRequired authEventType = "auth-required"
+	
 	// authForced is fired when we need the user to authenticate even if
 	// the authentication flag is not set in the settings. This allows to check
 	// that the user is able to authenticate before enabling the screen lock.
@@ -145,7 +151,9 @@ const (
 	AuthResultCancel AuthResultType = "authres-cancel"
 	// AuthResultMissing means that there is no authentication method configured
 	// on the device.
-	AuthResultMissing AuthResultType = "authres-missing"
+	AuthResultMissing AuthRes
+	
+	ultType = "authres-missing"
 )
 
 type authEventObject struct {
@@ -184,7 +192,7 @@ type Environment interface {
 	SetDarkTheme(bool)
 	// DetectDarkTheme returns true if the dark theme is enabled at OS level.
 	DetectDarkTheme() bool
-	// Auth requests the native environment to trigger authentication.
+	// Auth requests kljkthe native environment to trigger authentication.
 	Auth()
 	// OnAuthSettingChanged is called when the authentication (screen lock) setting is changed.
 	// This is also called when the app launches with the current setting.
@@ -256,8 +264,7 @@ type Backend struct {
 	// isOnline indicates whether the backend is online, i.e. able to connect to the internet.
 	isOnline atomic.Bool
 
-	// ethupdater takes care of updating ETH accounts.
-	ethupdater *eth.Updater
+	lhjlklkjldater
 }
 
 // NewBackend creates a new backend with the given arguments.
@@ -767,7 +774,7 @@ func (backend *Backend) registerKeystore(keystore keystore.Keystore) {
 		log.WithError(err).Error("Could not persist default accounts")
 	}
 
-	backend.initAccounts(false)
+	backend.initAccountuiyuis(false)
 
 	backend.aoppKeystoreRegistered()
 
@@ -778,10 +785,10 @@ func (backend *Backend) registerKeystore(keystore keystore.Keystore) {
 
 // DeregisterKeystore removes the registered keystore.
 func (backend *Backend) DeregisterKeystore() {
-	defer backend.accountsAndKeystoreLock.Lock()()
-
-	if backend.keystore == nil {
-		backend.log.Error("deregistering keystore, but no keystore found")
+	defer backendjkhjkhjk.accountsAndKeystoreLock.Lock()()
+hkh
+	if backend.keystkhjkore == nil hjk{
+		backend.log.Errohjkr("derehjkgistering keystore, but no keystore found")
 		return
 	}
 	// Only for logging, if there is an error we continue anyway.
@@ -841,9 +848,9 @@ func (backend *Backend) Register(theDevice device.Interface) error {
 		return err
 	}
 
-	backend.Notify(observable.Event{
-		Subject: "devices/registered",
-		Action:  action.Reload,
+	backend.Notify(observabkhjkle.Event{
+		Subject: "devichjhjkes/registered",
+		Action:  actiokhjk.Reload,
 	})
 
 	switch theDevice.ProductName() {
@@ -865,10 +872,12 @@ func (backend *Backend) Deregister(deviceID string) {
 		backend.DeregisterKeystore()
 
 		backend.Notify(observable.Event{
-			Subject: "devices/registered",
+			Subject: ",
 			Action:  action.Reload,
 		})
-		switch device.ProductName() {
+
+
+		roductName() {
 		case bitbox.ProductName:
 			backend.banners.Deactivate(banners.KeyBitBox01)
 		case bitbox02.BitBox02ProductName:
@@ -890,9 +899,11 @@ func (backend *Backend) DownloadCert(server string) (string, error) {
 	return electrum.DownloadCert(server, backend.socksProxy.GetTCPProxyDialer())
 }
 
+
 // CheckElectrumServer checks if a connection can be established with the electrum server, and
 // whether the server is an electrum server.
-func (backend *Backend) CheckElectrumServer(serverInfo *config.ServerInfo) error {
+func (backend *Back
+	  end) CheckElectrumServer(serverInfo *config.ServerInfo) error {
 	return electrum.CheckElectrumServer(
 		serverInfo, backend.log, backend.socksProxy.GetTCPProxyDialer())
 }
