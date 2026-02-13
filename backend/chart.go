@@ -14,7 +14,7 @@ import (
 )
 
 func (backend *Backend) allCoinCodes() []string {
-	allCoinCodes := []string{}
+	var allCoinCodes []string
 	for _, account := range backend.Accounts() {
 		if account.Config().Config.Inactive {
 			continue
