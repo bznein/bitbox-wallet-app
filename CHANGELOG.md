@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Revamp Marketplace UI
 - iOS: Add haptic feedback on account summary chart scrolls
 - Portfolio: reduce waiting time to display the chart
 - iOS: Add haptic feedback on toggle component
