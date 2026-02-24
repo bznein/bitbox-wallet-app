@@ -49,6 +49,10 @@ type Updater struct {
 
 	// updateAccounts is a function that updates all ETH accounts.
 	updateAccounts func() error
+	// updateAccountsByChain is used to update specific ETH accounts grouped by chain.
+	updateAccountsByChain func(chainID string, accounts []*Account)
+	// runGlobalOnStart controls whether PollBalances triggers a global update immediately on startup.
+	runGlobalOnStart bool
 }
 
 // NewUpdater creates a new Updater instance.
@@ -58,7 +62,7 @@ func NewUpdater(
 	etherscanRateLimiter *rate.Limiter,
 	updateETHAccounts func() error,
 ) *Updater {
-	return &Updater{
+	updater := &Updater{
 		quit:                    make(chan struct{}),
 		enqueueUpdateForAccount: accountUpdate,
 		updateETHAccountsCh:     make(chan struct{}),
@@ -66,7 +70,10 @@ func NewUpdater(
 		etherscanRateLimiter:    etherscanRateLimiter,
 		updateAccounts:          updateETHAccounts,
 		log:                     logging.Get().WithGroup("ethupdater"),
+		runGlobalOnStart:        true,
 	}
+	updater.updateAccountsByChain = updater.updateAccountsForChain
+	return updater
 }
 
 // Close closes the updater and its channels.
@@ -79,41 +86,122 @@ func (u *Updater) EnqueueUpdateForAllAccounts() {
 	u.updateETHAccountsCh <- struct{}{}
 }
 
+func (u *Updater) updateAccountsForChain(chainID string, accounts []*Account) {
+	if len(accounts) == 0 {
+		return
+	}
+	etherScanClient := etherscan.NewEtherScan(chainID, u.etherscanClient, u.etherscanRateLimiter)
+	u.UpdateBalancesAndBlockNumber(accounts, etherScanClient)
+}
+
+func resetTimer(timer *time.Timer, duration time.Duration) {
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+	timer.Reset(duration)
+}
+
 // PollBalances updates the balances of all ETH accounts.
 // It does that in three different cases:
 // - When a timer triggers the update.
 // - When the signanl to update all accounts is sent through UpdateETHAccountsCh.
 // - When a specific account is updated through EnqueueUpdateForAccount.
 func (u *Updater) PollBalances() {
-	timer := time.After(0)
+	timer := time.NewTimer(pollInterval)
+	defer timer.Stop()
 
-	updateAll := func() {
-		if err := u.updateAccounts(); err != nil {
-			u.log.WithError(err).Error("could not update ETH accounts")
+	updateDoneCh := make(chan struct{}, 1)
+	pendingAllAccountsUpdate := u.runGlobalOnStart
+	pendingAccountUpdates := map[*Account]struct{}{}
+	updateRunning := false
+	runningGlobalUpdate := false
+
+	runUpdate := func() {
+		if updateRunning {
+			return
 		}
+		if pendingAllAccountsUpdate {
+			pendingAllAccountsUpdate = false
+			pendingAccountUpdates = map[*Account]struct{}{}
+			updateRunning = true
+			runningGlobalUpdate = true
+			go func() {
+				if u.updateAccounts != nil {
+					if err := u.updateAccounts(); err != nil {
+						u.log.WithError(err).Error("could not update ETH accounts")
+					}
+				}
+				select {
+				case updateDoneCh <- struct{}{}:
+				default:
+				}
+			}()
+			return
+		}
+		if len(pendingAccountUpdates) == 0 {
+			return
+		}
+
+		accountsByChainID := map[string][]*Account{}
+		for account := range pendingAccountUpdates {
+			if account == nil || account.isClosed() {
+				continue
+			}
+			chainID := account.ETHCoin().ChainIDstr()
+			accountsByChainID[chainID] = append(accountsByChainID[chainID], account)
+		}
+		pendingAccountUpdates = map[*Account]struct{}{}
+		updateRunning = true
+		runningGlobalUpdate = false
+
+		go func(accountsByChainID map[string][]*Account) {
+			for chainID, accounts := range accountsByChainID {
+				u.updateAccountsByChain(chainID, accounts)
+			}
+			select {
+			case updateDoneCh <- struct{}{}:
+			default:
+			}
+		}(accountsByChainID)
 	}
 
 	for {
+		if updateRunning {
+			select {
+			case <-updateDoneCh:
+				updateRunning = false
+				runningGlobalUpdate = false
+			default:
+			}
+		}
+		runUpdate()
+
 		select {
 		case <-u.quit:
 			return
-		default:
-			select {
-			case <-u.quit:
-				return
-			case account := <-u.enqueueUpdateForAccount:
-				go func() {
-					// A single ETH accounts needs an update.
-					etherScanClient := etherscan.NewEtherScan(account.ETHCoin().ChainIDstr(), u.etherscanClient, u.etherscanRateLimiter)
-					u.UpdateBalancesAndBlockNumber([]*Account{account}, etherScanClient)
-				}()
-			case <-u.updateETHAccountsCh:
-				go updateAll()
-				timer = time.After(pollInterval)
-			case <-timer:
-				go updateAll()
-				timer = time.After(pollInterval)
+		case <-timer.C:
+			pendingAllAccountsUpdate = true
+			pendingAccountUpdates = map[*Account]struct{}{}
+			resetTimer(timer, pollInterval)
+		case <-u.updateETHAccountsCh:
+			pendingAllAccountsUpdate = true
+			pendingAccountUpdates = map[*Account]struct{}{}
+			resetTimer(timer, pollInterval)
+		case account := <-u.enqueueUpdateForAccount:
+			if account == nil {
+				continue
 			}
+			// Global updates already cover all accounts; per-account updates can be coalesced away.
+			if pendingAllAccountsUpdate || runningGlobalUpdate {
+				continue
+			}
+			pendingAccountUpdates[account] = struct{}{}
+		case <-updateDoneCh:
+			updateRunning = false
+			runningGlobalUpdate = false
 		}
 	}
 
