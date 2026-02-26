@@ -9,7 +9,7 @@ export const getMarketRegionCodes = (): Promise<string[]> => {
 
 export type TPaymentMethod = 'card' | 'bank-transfer' | 'bancontact' | 'sofort';
 
-export type TMarketDeal = {
+export type TMarketOffer = {
   fee: number;
   payment?: TPaymentMethod;
   isFast?: boolean;
@@ -19,32 +19,83 @@ export type TMarketDeal = {
 
 export type TVendorName = 'moonpay' | 'pocket' | 'btcdirect' | 'btcdirect-otc' | 'bitrefill' | 'swapkit';
 
-export type TMarketDeals = {
+export type TOfferVendor = {
   vendorName: TVendorName;
-  deals: TMarketDeal[];
+  offers: TMarketOffer[];
 };
 
-export type TMarketDealsList = {
-  deals: TMarketDeals[];
-  success: true;
-};
-
-export type TMarketError = {
-  success: false;
+export type TOfferSection = {
+  success: boolean;
   errorCode?: 'coinNotSupported' | 'regionNotSupported';
-  errorMessage?: string;
+  offerVendors?: TOfferVendor[];
 };
 
-export type TMarketDealsResponse = TMarketDealsList | TMarketError;
+export type TMarketOffers = {
+  buy: TOfferSection;
+  sell: TOfferSection;
+};
+
+export type TMarketOffersResponse = {
+  success: true;
+  offers: TMarketOffers;
+} | {
+  success: false;
+  errorMessage: string;
+};
+
+export type TFeeModel = 'none' | 'dynamic' | 'range';
+
+export type TFeeRange = {
+  minPercent: number;
+  maxPercent: number;
+};
+
+export type TMinTradeAmount = {
+  amount: string;
+  currency: string;
+};
+
+export type TService = {
+  vendorName: TVendorName;
+  feeModel: TFeeModel;
+  feeRange?: TFeeRange;
+  minTradeAmount?: TMinTradeAmount;
+};
+
+export type TServiceSection = {
+  success: boolean;
+  errorCode?: 'coinNotSupported' | 'regionNotSupported';
+  services?: TService[];
+};
+
+export type TMarketServices = {
+  spend: TServiceSection;
+  swap: TServiceSection;
+  otc: TServiceSection;
+};
+
+export type TMarketServicesResponse = {
+  success: true;
+  services: TMarketServices;
+} | {
+  success: false;
+  errorMessage: string;
+};
 
 export type TMarketAction = 'buy' | 'sell' | 'spend' | 'swap' | 'otc';
 
-export const getMarketDeals = (
-  action: TMarketAction,
+export const getMarketOffers = (
   accountCode: AccountCode,
   region: string,
-): Promise<TMarketDealsResponse> => {
-  return apiGet(`market/deals/${action}/${accountCode}?region=${region}`);
+): Promise<TMarketOffersResponse> => {
+  return apiGet(`market/offers/${accountCode}?region=${region}`);
+};
+
+export const getMarketServices = (
+  accountCode: AccountCode,
+  region: string,
+): Promise<TMarketServicesResponse> => {
+  return apiGet(`market/services/${accountCode}?region=${region}`);
 };
 
 export type MoonpayBuyInfo = {

@@ -7,75 +7,111 @@ import { Skeleton } from '@/components/skeleton/skeleton';
 import { InfoButton } from '@/components/infobutton/infobutton';
 import { ActionableItem } from '@/components/actionable-item/actionable-item';
 import { VendorDeals } from '@/routes/market/components/vendor-deals';
+import { getVendorFormattedName } from '../utils';
 import style from './deals.module.css';
 
 type TProps = {
-  marketDealsResponse: marketAPI.TMarketDealsResponse | undefined;
+  offerSection: marketAPI.TOfferSection | undefined;
+  serviceSection: marketAPI.TServiceSection | undefined;
+  loading: boolean;
+  topLevelError?: string;
   goToVendor: (vendor: string) => void;
   action: marketAPI.TMarketAction;
   setInfo: (info: TInfoContentProps) => void;
 };
 
 export const Deals = ({
-  marketDealsResponse,
+  offerSection,
+  serviceSection,
+  loading,
+  topLevelError,
   goToVendor,
   action,
   setInfo,
 }: TProps) => {
   const { t } = useTranslation();
 
-
-  const buildInfo = (marketDeals: marketAPI.TMarketDeals): TInfoContentProps => {
+  const buildOfferInfo = (offerVendor: marketAPI.TOfferVendor): TInfoContentProps => {
     let paymentFees: TPaymentFee = {};
-    marketDeals.deals.forEach(deal => deal.payment && (paymentFees[deal.payment] = deal.fee));
+    offerVendor.offers.forEach(offer => offer.payment && (paymentFees[offer.payment] = offer.fee));
     return {
       action,
-      vendorName: marketDeals.vendorName,
+      vendorName: offerVendor.vendorName,
       paymentFees,
     };
   };
 
-  return (
-    <>
-      <div className={style.innerRadioButtonsContainer}>
-        {!marketDealsResponse && <Skeleton />}
-        {marketDealsResponse?.success === false ? (
-          <div className="flex flex-column">
-            <p className={style.noExchangeText}>
-              {marketDealsResponse?.success === false && (
-                marketDealsResponse.errorCode
-                  ? t('exchange.buySell.' + marketDealsResponse.errorCode)
-                  : marketDealsResponse.errorMessage
-              )}
-            </p>
-          </div>
-        ) : (
-          <div className={style.exchangeProvidersContainer}>
-            {marketDealsResponse?.success && action === 'otc' && (
-              t('buy.exchange.otcInfo')
-            )}
-            {marketDealsResponse?.deals
-              // skip the vendors that have only hidden deals.
-              .filter(vendor => (vendor.deals.some(deal => !deal.isHidden)))
-              .map(vendor => (
-                <div key={vendor.vendorName} className={style.actionableItemContainer}>
-                  <ActionableItem
-                    key={vendor.vendorName}
-                    onClick={() => {
-                      goToVendor(vendor.vendorName);
-                    }}>
-                    <VendorDeals
-                      deals={vendor.deals}
-                      vendorName={vendor.vendorName}
-                    />
-                  </ActionableItem>
+  const buildServiceInfo = (service: marketAPI.TService): TInfoContentProps => ({
+    action,
+    vendorName: service.vendorName,
+    paymentFees: {},
+  });
 
-                  <InfoButton onClick={() => setInfo(buildInfo(vendor))} />
+  const isOfferAction = action === 'buy' || action === 'sell';
+  const sectionErrorCode = isOfferAction ? offerSection?.errorCode : serviceSection?.errorCode;
+  const sectionSuccess = isOfferAction ? offerSection?.success : serviceSection?.success;
+
+  return (
+    <div className={style.innerRadioButtonsContainer}>
+      {loading && <Skeleton />}
+      {!loading && topLevelError && (
+        <div className="flex flex-column">
+          <p className={style.noExchangeText}>{topLevelError}</p>
+        </div>
+      )}
+      {!loading && !topLevelError && sectionSuccess === false && (
+        <div className="flex flex-column">
+          <p className={style.noExchangeText}>
+            {sectionErrorCode
+              ? t('exchange.buySell.' + sectionErrorCode)
+              : t('genericError')}
+          </p>
+        </div>
+      )}
+      {!loading && !topLevelError && sectionSuccess && (
+        <div className={style.exchangeProvidersContainer}>
+          {action === 'otc' && t('buy.exchange.otcInfo')}
+          {(offerSection?.offerVendors || [])
+            // skip vendors that have only hidden offers.
+            .filter(vendor => vendor.offers.some(offer => !offer.isHidden))
+            .map(vendor => (
+              <div key={vendor.vendorName} className={style.actionableItemContainer}>
+                <ActionableItem
+                  key={vendor.vendorName}
+                  onClick={() => {
+                    goToVendor(vendor.vendorName);
+                  }}>
+                  <VendorDeals
+                    offers={vendor.offers}
+                    vendorName={vendor.vendorName}
+                  />
+                </ActionableItem>
+
+                <InfoButton onClick={() => setInfo(buildOfferInfo(vendor))} />
+              </div>
+            ))}
+
+          {(serviceSection?.services || []).map(service => (
+            <div key={service.vendorName} className={style.actionableItemContainer}>
+              <ActionableItem
+                onClick={() => {
+                  goToVendor(service.vendorName);
+                }}>
+                <div className={style.exchangeProvidersContainer}>
+                  <h3>{getVendorFormattedName(service.vendorName)}</h3>
+                  <p className={style.noExchangeText}>
+                    {t('buy.exchange.description', { context: service.vendorName })}
+                  </p>
                 </div>
-              ))}
-          </div>
-        )}
-      </div>
-    </>
+              </ActionableItem>
+
+              {service.vendorName !== 'swapkit' && (
+                <InfoButton onClick={() => setInfo(buildServiceInfo(service))} />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };

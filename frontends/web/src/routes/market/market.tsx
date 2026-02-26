@@ -105,11 +105,14 @@ export const Market = ({
     setSelectedRegion(regionAvailable ? userRegion : '');
   }, [regionCodes, config, nativeLocale]);
 
-  const buyDealsResponse = useLoad(selectedAccount ? () => marketAPI.getMarketDeals('buy', selectedAccount, selectedRegion) : null, [selectedAccount, selectedRegion]);
-  const sellDealsResponse = useLoad(selectedAccount ? () => marketAPI.getMarketDeals('sell', selectedAccount, selectedRegion) : null, [selectedAccount, selectedRegion]);
-  const spendDealsResponse = useLoad(selectedAccount ? () => marketAPI.getMarketDeals('spend', selectedAccount, selectedRegion) : null, [selectedAccount, selectedRegion]);
-  const swapDealsResponse = useLoad(selectedAccount ? () => marketAPI.getMarketDeals('swap', selectedAccount, selectedRegion) : null, [selectedAccount, selectedRegion]);
-  const otcDealsResponse = useLoad(selectedAccount ? () => marketAPI.getMarketDeals('otc', selectedAccount, selectedRegion) : null, [selectedAccount, selectedRegion]);
+  const marketOffersResponse = useLoad(
+    selectedAccount ? () => marketAPI.getMarketOffers(selectedAccount, selectedRegion) : null,
+    [selectedAccount, selectedRegion]
+  );
+  const marketServicesResponse = useLoad(
+    selectedAccount ? () => marketAPI.getMarketServices(selectedAccount, selectedRegion) : null,
+    [selectedAccount, selectedRegion]
+  );
 
   const handleAccountChange = async (accountCode: string) => {
     const account = supportedAccounts.find(acc => acc.code === accountCode);
@@ -124,29 +127,48 @@ export const Market = ({
 
   // catch edge to change to spend tab for regions that dont have any buy or sell offerings
   useEffect(() => {
-    const noBuy = buyDealsResponse !== undefined && (!buyDealsResponse.success || buyDealsResponse.deals.length === 0);
-    const noSell = sellDealsResponse !== undefined && (!sellDealsResponse?.success || sellDealsResponse.deals.length === 0);
-    const hasSpend = spendDealsResponse?.success && spendDealsResponse.deals.length > 0;
+    const noBuy = marketOffersResponse?.success === true
+      && (!marketOffersResponse.offers.buy.success || (marketOffersResponse.offers.buy.offerVendors?.length || 0) === 0);
+    const noSell = marketOffersResponse?.success === true
+      && (!marketOffersResponse.offers.sell.success || (marketOffersResponse.offers.sell.offerVendors?.length || 0) === 0);
+    const hasSpend = marketServicesResponse?.success === true
+      && marketServicesResponse.services.spend.success
+      && (marketServicesResponse.services.spend.services?.length || 0) > 0;
     if (noBuy && noSell && hasSpend) {
       setActiveTab('spend');
     }
   }, [
     selectedRegion, // react to region changes
-    buyDealsResponse, sellDealsResponse, spendDealsResponse
+    marketOffersResponse, marketServicesResponse
   ]);
 
-  const getDealReponse = (action: marketAPI.TMarketAction) => {
+  const getOfferSection = (action: marketAPI.TMarketAction) => {
+    if (!marketOffersResponse?.success) {
+      return undefined;
+    }
     switch (action) {
     case 'buy':
-      return buyDealsResponse;
+      return marketOffersResponse.offers.buy;
     case 'sell':
-      return sellDealsResponse;
+      return marketOffersResponse.offers.sell;
+    default:
+      return undefined;
+    }
+  };
+
+  const getServiceSection = (action: marketAPI.TMarketAction) => {
+    if (!marketServicesResponse?.success) {
+      return undefined;
+    }
+    switch (action) {
     case 'spend':
-      return spendDealsResponse;
+      return marketServicesResponse.services.spend;
     case 'swap':
-      return swapDealsResponse;
+      return marketServicesResponse.services.swap;
     case 'otc':
-      return otcDealsResponse;
+      return marketServicesResponse.services.otc;
+    default:
+      return undefined;
     }
   };
 
@@ -273,7 +295,14 @@ export const Market = ({
                         <label className={style.label}>{getServicesLabel(activeTab)}</label>
                       )}
                       <Deals
-                        marketDealsResponse={getDealReponse(activeTab)}
+                        offerSection={getOfferSection(activeTab)}
+                        serviceSection={getServiceSection(activeTab)}
+                        loading={activeTab === 'buy' || activeTab === 'sell' ? !marketOffersResponse : !marketServicesResponse}
+                        topLevelError={
+                          activeTab === 'buy' || activeTab === 'sell'
+                            ? (marketOffersResponse?.success === false ? marketOffersResponse.errorMessage : undefined)
+                            : (marketServicesResponse?.success === false ? marketServicesResponse.errorMessage : undefined)
+                        }
                         goToVendor={goToVendor}
                         action={activeTab}
                         setInfo={setInfo}

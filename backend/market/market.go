@@ -95,7 +95,7 @@ type Region struct {
 	IsBitrefillEnabled bool   `json:"isBitrefillEnabled"`
 }
 
-// PaymentMethod type is used for payment options in market deals.
+// PaymentMethod type is used for payment options in market offers.
 type PaymentMethod string
 
 const (
@@ -109,24 +109,72 @@ const (
 	BancontactPayment PaymentMethod = "bancontact"
 )
 
-// Deal represents a specific purchase option of a vendor.
-type Deal struct {
-	// Fee that goes to the vendor in percentage.
-	Fee float32 `json:"fee"`
-	// Payment is the payment method offered in the deal (usually different payment methods bring different fees).
-	Payment PaymentMethod `json:"payment,omitempty"`
-	// IsFast is usually associated with card payments. It is used by the frontend to display the `fast` badge in deals list.
-	IsFast bool `json:"isFast,omitempty"`
-	// IsBest is assigned to the deal with the lowest fee, it is used to show the `best deal` badge in the frontend.
-	IsBest bool `json:"isBest,omitempty"`
-	// IsHidden deals are not explicitly listed in the frontend deals list.
-	IsHidden bool `json:"isHidden,omitempty"`
+type FeeModel string
+
+const (
+	FeeModelNone    FeeModel = "none"
+	FeeModelDynamic FeeModel = "dynamic"
+	FeeModelRange   FeeModel = "range"
+)
+
+// Offer represents a specific priced option for buy/sell actions.
+type Offer struct {
+	Fee      float32       `json:"fee"`
+	Payment  PaymentMethod `json:"payment,omitempty"`
+	IsFast   bool          `json:"isFast,omitempty"`
+	IsBest   bool          `json:"isBest,omitempty"`
+	IsHidden bool          `json:"isHidden,omitempty"`
 }
 
-// DealsList list the name of a specific vendors and the list of available deals offered by that vendor.
-type DealsList struct {
-	VendorName string  `json:"vendorName"`
-	Deals      []*Deal `json:"deals"`
+// OfferVendor groups buy/sell offers by vendor.
+type OfferVendor struct {
+	VendorName string   `json:"vendorName"`
+	Offers     []*Offer `json:"offers"`
+}
+
+type FeeRange struct {
+	MinPercent float32 `json:"minPercent"`
+	MaxPercent float32 `json:"maxPercent"`
+}
+
+type MinTradeAmount struct {
+	Amount   string `json:"amount"`
+	Currency string `json:"currency"`
+}
+
+// Service represents a market service capability for spend/otc/swap actions.
+type Service struct {
+	VendorName     string          `json:"vendorName"`
+	FeeModel       FeeModel        `json:"feeModel"`
+	FeeRange       *FeeRange       `json:"feeRange,omitempty"`
+	MinTradeAmount *MinTradeAmount `json:"minTradeAmount,omitempty"`
+}
+
+// OfferSection represents one section in the offers endpoint response.
+type OfferSection struct {
+	Success      bool           `json:"success"`
+	ErrorCode    string         `json:"errorCode,omitempty"`
+	OfferVendors []*OfferVendor `json:"offerVendors,omitempty"`
+}
+
+// ServiceSection represents one section in the services endpoint response.
+type ServiceSection struct {
+	Success   bool       `json:"success"`
+	ErrorCode string     `json:"errorCode,omitempty"`
+	Services  []*Service `json:"services,omitempty"`
+}
+
+// OffersResponse groups buy/sell offers in a single response payload.
+type OffersResponse struct {
+	Buy  OfferSection `json:"buy"`
+	Sell OfferSection `json:"sell"`
+}
+
+// ServicesResponse groups spend/otc/swap services in a single response payload.
+type ServicesResponse struct {
+	Spend ServiceSection `json:"spend"`
+	Swap  ServiceSection `json:"swap"`
+	Otc   ServiceSection `json:"otc"`
 }
 
 // ListVendorsByRegion populates an array of `Region` objects representing the availability
@@ -179,103 +227,162 @@ func ListVendorsByRegion(account accounts.Interface, httpClient *http.Client) Re
 	return vendorRegions
 }
 
-// GetDeals returns the vendor deals available for the specified account, region and action.
-func GetDeals(account accounts.Interface, regionCode string, action Action, httpClient *http.Client) ([]*DealsList, error) {
-	coinCode := account.Coin().Code()
-	if deals, handled, err := specialActionDeals(coinCode, regionCode, action); handled {
-		return deals, err
-	}
-
-	moonpaySupportsCoin := IsMoonpaySupported(coinCode) && action == BuyAction
-	pocketSupportsCoin := IsPocketSupported(coinCode) && (action == BuyAction || action == SellAction)
-	btcDirectSupportsCoin := IsBtcDirectSupported(coinCode) && (action == BuyAction || action == SellAction)
-	bitrefillSupportsCoin := IsBitrefillSupported(coinCode) && action == SpendAction
-	coinSupported := moonpaySupportsCoin || pocketSupportsCoin || btcDirectSupportsCoin || bitrefillSupportsCoin
-	if !coinSupported {
-		return nil, ErrCoinNotSupported
-	}
-
+func resolveUserRegion(account accounts.Interface, regionCode string, httpClient *http.Client) Region {
 	userRegion := Region{
 		IsMoonpayEnabled:   true,
 		IsPocketEnabled:    true,
 		IsBtcDirectEnabled: true,
 		IsBitrefillEnabled: true,
 	}
-	if len(regionCode) > 0 {
-		vendorsByRegion := ListVendorsByRegion(account, httpClient)
-		for _, region := range vendorsByRegion.Regions {
-			if region.Code == regionCode {
-				userRegion = region
-				break
-			}
-		}
-	}
-	marketDealsLists := []*DealsList{}
-	if pocketSupportsCoin && userRegion.IsPocketEnabled {
-		deals := PocketDeals()
-		if deals != nil {
-			marketDealsLists = append(marketDealsLists, deals)
-		}
-	}
-	if moonpaySupportsCoin && userRegion.IsMoonpayEnabled {
-		deals := MoonpayDeals(action)
-		if deals != nil {
-			marketDealsLists = append(marketDealsLists, deals)
-		}
-	}
-	if btcDirectSupportsCoin && userRegion.IsBtcDirectEnabled {
-		deals := BtcDirectDeals(action)
-		if deals != nil {
-			marketDealsLists = append(marketDealsLists, deals)
-		}
-	}
-	if bitrefillSupportsCoin && userRegion.IsBitrefillEnabled {
-		deals := BitrefillDeals()
-		if deals != nil {
-			marketDealsLists = append(marketDealsLists, deals)
-		}
-	}
-	if len(marketDealsLists) == 0 {
-		return nil, ErrRegionNotSupported
+	if len(regionCode) == 0 {
+		return userRegion
 	}
 
-	deals := []*Deal{}
-	for _, dealsList := range marketDealsLists {
-		if dealsList != nil {
-			deals = append(deals, dealsList.Deals...)
+	vendorsByRegion := ListVendorsByRegion(account, httpClient)
+	for _, region := range vendorsByRegion.Regions {
+		if region.Code == regionCode {
+			userRegion = region
+			break
 		}
 	}
-
-	if len(deals) > 1 {
-		bestDealIndex := 0
-		for i, deal := range deals {
-			oldBestDeal := deals[bestDealIndex]
-			if !deal.IsHidden && deal.Fee < oldBestDeal.Fee {
-				bestDealIndex = i
-			}
-		}
-		deals[bestDealIndex].IsBest = true
-	}
-
-	return marketDealsLists, nil
+	return userRegion
 }
 
-func specialActionDeals(coinCode coin.Code, regionCode string, action Action) ([]*DealsList, bool, error) {
-	switch action {
-	case SwapAction:
-		if !IsSwapKitSupported(coinCode) {
-			return nil, true, ErrCoinNotSupported
-		}
-		return []*DealsList{SwapKitDeals()}, true, nil
-	case OtcAction:
-		if !IsBtcDirectSupported(coinCode) {
-			return nil, true, ErrCoinNotSupported
-		}
-		if !IsBtcDirectOTCSupportedForCoinInRegion(coinCode, regionCode) {
-			return nil, true, ErrRegionNotSupported
-		}
-		return []*DealsList{BtcDirectOTCDeals()}, true, nil
-	default:
-		return nil, false, nil
+// GetOffers returns buy and sell offers grouped by action.
+func GetOffers(account accounts.Interface, regionCode string, httpClient *http.Client) *OffersResponse {
+	coinCode := account.Coin().Code()
+	userRegion := resolveUserRegion(account, regionCode, httpClient)
+
+	return &OffersResponse{
+		Buy:  buyOfferSection(coinCode, userRegion),
+		Sell: sellOfferSection(coinCode, userRegion),
 	}
+}
+
+// GetServices returns spend, swap and OTC services grouped by action.
+func GetServices(account accounts.Interface, regionCode string, httpClient *http.Client) *ServicesResponse {
+	coinCode := account.Coin().Code()
+
+	return &ServicesResponse{
+		Spend: spendServiceSection(coinCode, resolveUserRegion(account, regionCode, httpClient)),
+		Swap:  swapServiceSection(coinCode),
+		Otc:   otcServiceSection(coinCode, regionCode),
+	}
+}
+
+func buyOfferSection(coinCode coin.Code, userRegion Region) OfferSection {
+	moonpaySupportsCoin := IsMoonpaySupported(coinCode)
+	pocketSupportsCoin := IsPocketSupported(coinCode)
+	btcDirectSupportsCoin := IsBtcDirectSupported(coinCode)
+	coinSupported := moonpaySupportsCoin || pocketSupportsCoin || btcDirectSupportsCoin
+	if !coinSupported {
+		return OfferSection{Success: false, ErrorCode: ErrCoinNotSupported.Error()}
+	}
+
+	section := OfferSection{Success: true}
+	if pocketSupportsCoin && userRegion.IsPocketEnabled {
+		section.OfferVendors = append(section.OfferVendors, PocketBuyOffers())
+	}
+	if moonpaySupportsCoin && userRegion.IsMoonpayEnabled {
+		section.OfferVendors = append(section.OfferVendors, MoonpayBuyOffers())
+	}
+	if btcDirectSupportsCoin && userRegion.IsBtcDirectEnabled {
+		section.OfferVendors = append(section.OfferVendors, BtcDirectBuyOffers())
+	}
+
+	if len(section.OfferVendors) == 0 {
+		return OfferSection{Success: false, ErrorCode: ErrRegionNotSupported.Error()}
+	}
+
+	assignBestOffer(section.OfferVendors)
+	return section
+}
+
+func sellOfferSection(coinCode coin.Code, userRegion Region) OfferSection {
+	pocketSupportsCoin := IsPocketSupported(coinCode)
+	btcDirectSupportsCoin := IsBtcDirectSupported(coinCode)
+	coinSupported := pocketSupportsCoin || btcDirectSupportsCoin
+	if !coinSupported {
+		return OfferSection{Success: false, ErrorCode: ErrCoinNotSupported.Error()}
+	}
+
+	section := OfferSection{Success: true}
+	if pocketSupportsCoin && userRegion.IsPocketEnabled {
+		section.OfferVendors = append(section.OfferVendors, PocketSellOffers())
+	}
+	if btcDirectSupportsCoin && userRegion.IsBtcDirectEnabled {
+		section.OfferVendors = append(section.OfferVendors, BtcDirectSellOffers())
+	}
+
+	if len(section.OfferVendors) == 0 {
+		return OfferSection{Success: false, ErrorCode: ErrRegionNotSupported.Error()}
+	}
+
+	assignBestOffer(section.OfferVendors)
+	return section
+}
+
+func spendServiceSection(coinCode coin.Code, userRegion Region) ServiceSection {
+	if !IsBitrefillSupported(coinCode) {
+		return ServiceSection{Success: false, ErrorCode: ErrCoinNotSupported.Error()}
+	}
+	if !userRegion.IsBitrefillEnabled {
+		return ServiceSection{Success: false, ErrorCode: ErrRegionNotSupported.Error()}
+	}
+
+	return ServiceSection{
+		Success:  true,
+		Services: []*Service{BitrefillSpendService()},
+	}
+}
+
+func otcServiceSection(coinCode coin.Code, regionCode string) ServiceSection {
+	if !IsBtcDirectSupported(coinCode) {
+		return ServiceSection{Success: false, ErrorCode: ErrCoinNotSupported.Error()}
+	}
+	if !IsBtcDirectOTCSupportedForCoinInRegion(coinCode, regionCode) {
+		return ServiceSection{Success: false, ErrorCode: ErrRegionNotSupported.Error()}
+	}
+
+	return ServiceSection{
+		Success:  true,
+		Services: []*Service{BtcDirectOTCService()},
+	}
+}
+
+func swapServiceSection(coinCode coin.Code) ServiceSection {
+	if !IsSwapKitSupported(coinCode) {
+		return ServiceSection{Success: false, ErrorCode: ErrCoinNotSupported.Error()}
+	}
+
+	return ServiceSection{
+		Success:  true,
+		Services: []*Service{SwapKitService()},
+	}
+}
+
+func assignBestOffer(vendors []*OfferVendor) {
+	type indexedOffer struct {
+		offer *Offer
+	}
+
+	offers := []indexedOffer{}
+	for _, vendor := range vendors {
+		for _, offer := range vendor.Offers {
+			offers = append(offers, indexedOffer{offer: offer})
+		}
+	}
+
+	if len(offers) <= 1 {
+		return
+	}
+
+	bestIdx := 0
+	for i, indexed := range offers {
+		oldBest := offers[bestIdx].offer
+		if !indexed.offer.IsHidden && indexed.offer.Fee < oldBest.Fee {
+			bestIdx = i
+		}
+	}
+	offers[bestIdx].offer.IsBest = true
 }
