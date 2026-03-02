@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import Select, { components, SingleValueProps, OptionProps, DropdownIndicatorProps } from 'react-select';
-import type { TAmountWithConversions } from '@/api/account';
+import type { CoinUnit, TAmountWithConversions } from '@/api/account';
+import type { TSwapQuoteRoute } from '@/api/swap';
 import { Label } from '@/components/forms';
 import { ChevronDownDark } from '@/components/icon';
 import { Badge } from '@/components/badge/badge';
@@ -9,13 +10,14 @@ import { AmountWithUnit } from '@/components/amount/amount-with-unit';
 import { SwapServiceLogo } from './swap-service-logo';
 import style from './swap-service-selector.module.css';
 
-type TOption<T = any> = {
+type TOption = {
   amount: TAmountWithConversions;
-  icon: string;
+  fee: string;
   label: string;
   isFast: boolean;
   isRecommended: boolean;
-  value: T;
+  provider: string;
+  value: string;
 };
 
 type SwapProviderOptionProps = {
@@ -25,7 +27,7 @@ type SwapProviderOptionProps = {
 const SwapProviderOption = ({ data }: SwapProviderOptionProps) => {
   return (
     <>
-      <SwapServiceLogo name={data.value} />
+      <SwapServiceLogo name={data.provider} />
       <span>
         <span className={style.serivceName}>
           {data.label}
@@ -36,6 +38,11 @@ const SwapProviderOption = ({ data }: SwapProviderOptionProps) => {
         {data.isFast && (
           <Badge type="warning">Fastest</Badge>
         )}
+        <span className={style.fee}>
+          Fee:
+          {' '}
+          {data.fee}
+        </span>
       </span>
       <span className={style.amount}>
         <AmountWithUnit amount={data.amount} />
@@ -82,79 +89,74 @@ const DropdownIndicator = (props: DropdownIndicatorProps<TOption>) => (
   </components.DropdownIndicator>
 );
 
-export const SwapServiceSelector = () => {
-  const options: TOption<string>[] = [{
+type Props = {
+  buyUnit: CoinUnit | undefined;
+  error?: string;
+  isLoading: boolean;
+  onChangeRouteId: (routeId: string) => void;
+  routes: TSwapQuoteRoute[];
+  selectedRouteId?: string;
+};
+
+const addDecimalStrings = (a: string, b: string): string => {
+  const [aInt = '0', aFrac = ''] = a.split('.');
+  const [bInt = '0', bFrac = ''] = b.split('.');
+  const fracLength = Math.max(aFrac.length, bFrac.length);
+  const scale = BigInt(`1${'0'.repeat(fracLength)}`);
+  const toScaled = (intPart: string, fracPart: string): bigint => {
+    const normalizedFrac = fracPart.padEnd(fracLength, '0');
+    return BigInt(intPart || '0') * scale + BigInt(normalizedFrac || '0');
+  };
+  const sum = toScaled(aInt, aFrac) + toScaled(bInt, bFrac);
+  const intPart = sum / scale;
+  const fracPart = (sum % scale).toString().padStart(fracLength, '0').replace(/0+$/, '');
+  return fracPart.length ? `${intPart.toString()}.${fracPart}` : intPart.toString();
+};
+
+const getFeeLabel = (route: TSwapQuoteRoute): string => {
+  if (!route.fees.length) {
+    return '-';
+  }
+  const feesByAsset: Record<string, string> = {};
+  route.fees.forEach(fee => {
+    const currentFeeAmount = feesByAsset[fee.asset] ?? '0';
+    feesByAsset[fee.asset] = addDecimalStrings(currentFeeAmount, fee.amount);
+  });
+  return Object.entries(feesByAsset)
+    .map(([asset, amount]) => `${amount} ${asset}`)
+    .join(' + ');
+};
+
+export const SwapServiceSelector = ({
+  buyUnit,
+  error,
+  isLoading,
+  onChangeRouteId,
+  routes,
+  selectedRouteId,
+}: Props) => {
+  const unit = buyUnit || 'BTC';
+  const options: TOption[] = routes.map((route, index) => ({
     amount: {
-      amount: '0.04',
-      unit: 'BTC',
+      amount: route.expectedBuyAmount,
+      unit,
       estimated: false,
-      conversions: {
-        BTC: '0.005',
-        AUD: '512',
-        BRL: '512',
-        CAD: '512',
-        CHF: '512',
-        CNY: '512',
-        CZK: '512',
-        EUR: '512',
-        GBP: '512',
-        HKD: '512',
-        ILS: '512',
-        JPY: '512',
-        KRW: '512',
-        NOK: '512',
-        PLN: '512',
-        RUB: '512',
-        sat: '512',
-        SEK: '512',
-        SGD: '512',
-        USD: '512',
-      }
     },
-    icon: '',
-    label: 'Thorchain',
-    isRecommended: true,
-    isFast: false,
-    value: 'thorchain'
-  }, {
-    amount: {
-      amount: '0.03',
-      unit: 'BTC',
-      estimated: false,
-      conversions: {
-        BTC: '0.005',
-        AUD: '512',
-        BRL: '512',
-        CAD: '512',
-        CHF: '512',
-        CNY: '512',
-        CZK: '512',
-        EUR: '512',
-        GBP: '512',
-        HKD: '512',
-        ILS: '512',
-        JPY: '512',
-        KRW: '512',
-        NOK: '512',
-        PLN: '512',
-        RUB: '512',
-        sat: '512',
-        SEK: '512',
-        SGD: '512',
-        USD: '512',
-      }
-    },
-    icon: '',
+    fee: getFeeLabel(route),
     label: 'NEAR',
-    isRecommended: false,
-    isFast: true,
-    value: 'near'
-  }];
+    isRecommended: index === 0,
+    isFast: false,
+    provider: 'near',
+    value: route.routeId,
+  }));
+
+  const selectedOption = options.find(option => option.value === selectedRouteId) || options[0];
+  const hasMultipleRoutes = options.length > 1;
 
   return (
     <section>
       <Label>
-        Swapping services
+        Swap route
       </Label>
       <Select<TOption>
         className={style.select}
@@ -166,11 +168,21 @@ export const SwapServiceSelector = () => {
           Option: CustomOption,
           SingleValue: CustomSingleValue,
         }}
+        isDisabled={!options.length || !hasMultipleRoutes || isLoading}
         isSearchable={false}
         options={options}
-        onChange={(option) => console.log(option?.value)}
-        defaultValue={options[0]}
+        value={selectedOption}
+        onChange={option => option && onChangeRouteId(option.value)}
       />
+      {isLoading && (
+        <p className={style.statusText}>Fetching routes...</p>
+      )}
+      {!isLoading && error && (
+        <p className={style.errorText}>{error}</p>
+      )}
+      {!isLoading && !error && options.length === 1 && (
+        <p className={style.statusText}>One route available.</p>
+      )}
     </section>
   );
 };

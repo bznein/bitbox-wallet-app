@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getBalance, TBalance, type AccountCode, type TAccount } from '@/api/account';
+import { getSwapQuote, type TSwapQuoteRoute } from '@/api/swap';
 import { GuideWrapper, GuidedContent, Main, Header } from '@/components/layout';
 import { View, ViewButtons, ViewContent } from '@/components/view/view';
 import { SubTitle } from '@/components/title';
@@ -29,6 +30,21 @@ const fetchBlance = async (code: AccountCode) => {
   return;
 };
 
+const SWAP_ASSET_MAP: Partial<Record<TAccount['coinCode'], string>> = {
+  btc: 'BTC.BTC',
+  rbtc: 'BTC.BTC',
+  tbtc: 'BTC.BTC',
+  eth: 'ETH.ETH',
+  sepeth: 'ETH.ETH',
+};
+
+const getSwapAsset = (account: TAccount | undefined): string | undefined => {
+  if (!account) {
+    return;
+  }
+  return SWAP_ASSET_MAP[account.coinCode];
+};
+
 export const Swap = ({
   accounts,
   code,
@@ -36,13 +52,32 @@ export const Swap = ({
   const { t } = useTranslation();
 
   // Send
-  const [sellAccountCode, setSellAccountCode] = useState<string>(code);
+  const [sellAccountCode, setSellAccountCode] = useState<AccountCode>(code);
   const [sellAmount, setSellAmount] = useState<string>('');
   const [maxSellAmount, setMaxSellAmount] = useState<TBalance | undefined>();
 
   // Receive
-  const [buyAccountCode, setBuyAccountCode] = useState<string>();
+  const [buyAccountCode, setBuyAccountCode] = useState<AccountCode | undefined>(
+    accounts.find(account => account.code !== code)?.code
+  );
   const [expectedOutput, setExpectedOutput] = useState<string>('');
+  const [routes, setRoutes] = useState<TSwapQuoteRoute[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | undefined>();
+  const [isFetchingRoutes, setIsFetchingRoutes] = useState(false);
+  const [routeError, setRouteError] = useState<string | undefined>();
+
+  const sellAccount = useMemo(
+    () => accounts.find(account => account.code === sellAccountCode),
+    [accounts, sellAccountCode]
+  );
+  const buyAccount = useMemo(
+    () => accounts.find(account => account.code === buyAccountCode),
+    [accounts, buyAccountCode]
+  );
+  const selectedRoute = useMemo(
+    () => routes.find(route => route.routeId === selectedRouteId),
+    [routes, selectedRouteId]
+  );
 
   // update max swappable amount (total coins of the account)
   useEffect(() => {
@@ -51,8 +86,101 @@ export const Swap = ({
     }
   }, [sellAccountCode]);
 
-  // not used yet, but loggin so we dont get a TS error
-  console.log(setExpectedOutput);
+  useEffect(() => {
+    let isCancelled = false;
+    const sellAsset = getSwapAsset(sellAccount);
+    const buyAsset = getSwapAsset(buyAccount);
+    const amount = Number(sellAmount);
+
+    if (
+      !sellAsset
+      || !buyAsset
+      || !sellAmount
+      || Number.isNaN(amount)
+      || amount <= 0
+      || sellAccountCode === buyAccountCode
+    ) {
+      const hasAssetSelection = !!sellAccountCode && !!buyAccountCode;
+      setRoutes([]);
+      setSelectedRouteId(undefined);
+      setExpectedOutput('');
+      setRouteError(hasAssetSelection && (!sellAsset || !buyAsset)
+        ? 'Selected assets are not supported for quoting yet.'
+        : undefined);
+      setIsFetchingRoutes(false);
+      return;
+    }
+
+    setIsFetchingRoutes(true);
+    setRouteError(undefined);
+
+    const timeoutId = window.setTimeout(() => {
+      console.info('[swap] requesting quote', { buyAsset, sellAmount, sellAsset });
+      getSwapQuote({
+        buyAsset,
+        sellAmount,
+        sellAsset,
+      })
+        .then(response => {
+          if (isCancelled) {
+            return;
+          }
+          console.info('[swap] quote response', response);
+          console.info('[swap] quote response JSON', JSON.stringify(response));
+          console.info('[swap] route fees', (response.quote?.routes || []).map(route => ({
+            routeId: route.routeId,
+            fees: route.fees,
+          })));
+          const nextRoutes = response.quote?.routes || [];
+          if (nextRoutes.length) {
+            setRoutes(nextRoutes);
+            const firstRouteId = nextRoutes[0]?.routeId;
+            setSelectedRouteId(currentRouteId => (
+              nextRoutes.some(route => route.routeId === currentRouteId)
+                ? currentRouteId
+                : firstRouteId
+            ));
+            return;
+          }
+          if (response.error) {
+            setRoutes([]);
+            setSelectedRouteId(undefined);
+            setExpectedOutput('');
+            setRouteError(response.error);
+            return;
+          }
+          setRoutes([]);
+          setSelectedRouteId(undefined);
+          setExpectedOutput('');
+          setRouteError('No quotes are available for the selected parameters.');
+        })
+        .catch((error: unknown) => {
+          if (isCancelled) {
+            return;
+          }
+          setRoutes([]);
+          setSelectedRouteId(undefined);
+          setExpectedOutput('');
+          setRouteError(typeof error === 'string' && error
+            ? error
+            : 'Unable to fetch quotes right now. Please try again.');
+        })
+        .finally(() => {
+          if (!isCancelled) {
+            setIsFetchingRoutes(false);
+          }
+        });
+    }, 300);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [buyAccount, buyAccountCode, sellAccount, sellAccountCode, sellAmount]);
+
+  useEffect(() => {
+    setExpectedOutput(selectedRoute?.expectedBuyAmount || '');
+  }, [selectedRoute]);
 
   return (
     <GuideWrapper>
@@ -110,9 +238,6 @@ export const Swap = ({
                     {t('generic.receiveWithoutCoinCode')}
                   </span>
                 </Label>
-                <Button transparent className={style.maxButton}>
-                  45678 ETH
-                </Button>
               </div>
               <InputWithAccountSelector
                 accounts={accounts}
@@ -121,7 +246,14 @@ export const Swap = ({
                 onChangeAccountCode={setBuyAccountCode}
                 value={expectedOutput}
               />
-              <SwapServiceSelector />
+              <SwapServiceSelector
+                buyUnit={buyAccount?.coinUnit}
+                error={routeError}
+                isLoading={isFetchingRoutes}
+                onChangeRouteId={setSelectedRouteId}
+                routes={routes}
+                selectedRouteId={selectedRouteId}
+              />
             </ViewContent>
             <ViewButtons>
               <Button primary>

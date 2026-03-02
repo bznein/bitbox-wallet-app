@@ -15,6 +15,7 @@ import (
 	"os"
 	"runtime/debug"
 	"slices"
+	"strings"
 
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts"
@@ -1680,24 +1681,79 @@ func (handlers *Handlers) postSwapkitQuote(r *http.Request) interface{} {
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		return result{Success: false}
 	}
+	formatSwapkitQuoteError := func(err error) string {
+		raw := err.Error()
+		jsonStart := strings.Index(raw, "{")
+		if jsonStart == -1 {
+			return raw
+		}
+		var payload struct {
+			Error   string `json:"error"`
+			Message string `json:"message"`
+		}
+		if unmarshalErr := json.Unmarshal([]byte(raw[jsonStart:]), &payload); unmarshalErr != nil {
+			return raw
+		}
+		if payload.Message != "" {
+			return payload.Message
+		}
+		if payload.Error != "" {
+			return payload.Error
+		}
+		return raw
+	}
 
-	s := swapkit.NewClient("0722e09f-9d3f-4817-a870-069848d03ee9")
+	const swapkitAPIKey = "0722e09f-9d3f-4817-a870-069848d03ee9"
+	s := swapkit.NewClient(swapkitAPIKey)
 	request.Providers = []string{"NEAR"}
+	requestJSON, _ := json.Marshal(request)
+	curlRequestJSON := strings.ReplaceAll(string(requestJSON), "'", "'\"'\"'")
+	curlCommand := fmt.Sprintf(
+		"curl -X POST 'https://api.swapkit.dev/v3/quote' -H 'Content-Type: application/json' -H 'X-Api-Key: %s' -d '%s'",
+		swapkitAPIKey,
+		curlRequestJSON,
+	)
+	handlers.log.WithFields(logrus.Fields{
+		"sellAsset": request.SellAsset,
+		"buyAsset":  request.BuyAsset,
+		"sellAmount": request.SellAmount,
+		"providers": request.Providers,
+		"curl":      curlCommand,
+	}).Info("swapkit quote request")
 
 	quoteResponse, err := s.Quote(context.Background(), &request)
 	if err != nil {
+		handlers.log.WithError(err).WithField("curl", curlCommand).Error("swapkit quote request failed")
+		userErrorMessage := formatSwapkitQuoteError(err)
 		return result{
 			Success: false,
-			Error:   err.Error(),
+			Error:   userErrorMessage,
 		}
 	}
+	providerErrorsJSON, _ := json.Marshal(quoteResponse.ProviderErrors)
+	quoteResponseJSON, _ := json.Marshal(quoteResponse)
+	routesFees := make([]map[string]any, 0, len(quoteResponse.Routes))
+	for _, route := range quoteResponse.Routes {
+		routesFees = append(routesFees, map[string]any{
+			"routeId": route.RouteID,
+			"fees":    route.Fees,
+		})
+	}
+	routesFeesJSON, _ := json.Marshal(routesFees)
+	handlers.log.WithFields(logrus.Fields{
+		"quoteId":            quoteResponse.QuoteID,
+		"routesCount":        len(quoteResponse.Routes),
+		"providerErrors":     string(providerErrorsJSON),
+		"routesFees":         string(routesFeesJSON),
+		"quoteResponseRaw":   string(quoteResponseJSON),
+		"quoteResponseError": quoteResponse.Error,
+		"curl":               curlCommand,
+	}).Info("swapkit quote response")
 
 	res := result{
 		Success: quoteResponse.Error != "",
 		Error:   quoteResponse.Error, // Surface the response error to the top-level
-	}
-	if res.Success {
-		res.Quote = quoteResponse
+		Quote:   quoteResponse,
 	}
 	return res
 }

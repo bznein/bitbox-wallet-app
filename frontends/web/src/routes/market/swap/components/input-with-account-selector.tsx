@@ -52,6 +52,14 @@ export const InputWithAccountSelector = ({
     }
   }, [defaultCurrency, selectedAccount, value]);
 
+  useEffect(() => {
+    if (!accountCode) {
+      setSelectedAccount(undefined);
+      return;
+    }
+    setSelectedAccount(findAccount(accounts, accountCode));
+  }, [accountCode, accounts]);
+
   return (
     <div className={style.accountWithInputContainer}>
       <div className={style.accountSelectorCol}>
