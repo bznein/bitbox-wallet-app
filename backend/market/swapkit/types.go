@@ -22,6 +22,28 @@ type QuoteResponse struct {
 	Error          string       `json:"error,omitempty"`
 }
 
+// SwapResponse represents a response from the /swap endpoint of the SwapKit API.
+type SwapResponse struct {
+	RouteID                      string          `json:"routeId"`
+	Providers                    []string        `json:"providers"`
+	SellAsset                    string          `json:"sellAsset"`
+	BuyAsset                     string          `json:"buyAsset"`
+	SellAmount                   string          `json:"sellAmount"`
+	ExpectedBuyAmount            string          `json:"expectedBuyAmount"`
+	ExpectedBuyAmountMaxSlippage string          `json:"expectedBuyAmountMaxSlippage"`
+	Tx                           json.RawMessage `json:"tx"`
+	ApprovalTx                   json.RawMessage `json:"approvalTx,omitempty"`
+	TargetAddress                string          `json:"targetAddress"`
+	Memo                         string          `json:"memo,omitempty"`
+	Fees                         []Fee           `json:"fees"`
+	EstimatedTime                json.RawMessage `json:"estimatedTime,omitempty"`
+	TotalSlippageBps             int             `json:"totalSlippageBps"`
+	Legs                         json.RawMessage `json:"legs,omitempty"`
+	Warnings                     json.RawMessage `json:"warnings,omitempty"`
+	Meta                         json.RawMessage `json:"meta,omitempty"`
+	NextActions                  []NextAction    `json:"nextActions,omitempty"`
+}
+
 // QuoteRoute represents a single route for a quote returned by the SwapKit API.
 type QuoteRoute struct {
 	RouteID                      string   `json:"routeId"`
