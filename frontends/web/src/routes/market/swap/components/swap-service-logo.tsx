@@ -15,7 +15,6 @@ type TProps = {
 export const SwapServiceLogo = ({
   name,
 }: TProps) => {
-  console.log('name', name);
   switch (name) {
   case 'thorchain':
   case 'near':

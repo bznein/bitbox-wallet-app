@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getBalance, TBalance, type AccountCode, type TAccount } from '@/api/account';
+import { alertUser } from '@/components/alert/Alert';
+import { getBalance, getReceiveAddressList, hasPaymentRequest, TBalance, type AccountCode, type CoinCode, type TAccount } from '@/api/account';
 import { GuideWrapper, GuidedContent, Main, Header } from '@/components/layout';
 import { View, ViewButtons, ViewContent } from '@/components/view/view';
 import { SubTitle } from '@/components/title';
@@ -10,14 +11,13 @@ import { Guide } from '@/components/guide/guide';
 import { Entry } from '@/components/guide/entry';
 import { Button, Label } from '@/components/forms';
 import { BackButton } from '@/components/backbutton/backbutton';
+import { SwapServiceSelector } from './components/swap-service-selector';
+import { InputWithAccountSelector } from './components/input-with-account-selector';
 import { AmountWithUnit } from '@/components/amount/amount-with-unit';
 import { ArrowSwap } from '@/components/icon';
-import { InputWithAccountSelector } from './components/input-with-account-selector';
-import { SwapServiceSelector } from './components/swap-service-selector';
-import { ConfirmSwap } from './components/swap-confirm';
-import { SwapResult } from './components/swap-result';
+import { executeSwap, getSwapQuote, type TSwapQuoteRoute } from '@/api/swap';
+import { FirmwareUpgradeRequiredDialog } from '@/components/dialog/firmware-upgrade-required-dialog';
 import style from './swap.module.css';
-import { RatesContext } from '@/contexts/RatesContext';
 
 type Props = {
   accounts: TAccount[];
@@ -32,39 +32,223 @@ const fetchBlance = async (code: AccountCode) => {
   return;
 };
 
+const toSwapkitAsset = (coinCode: CoinCode | undefined): string | undefined => {
+  if (!coinCode) {
+    return;
+  }
+  switch (coinCode) {
+  case 'btc':
+  case 'tbtc':
+  case 'rbtc':
+    return 'BTC.BTC';
+  case 'eth':
+  case 'sepeth':
+    return 'ETH.ETH';
+  default:
+    return;
+  }
+};
+
 export const Swap = ({
   accounts,
   code,
 }: Props) => {
   const { t } = useTranslation();
 
-  // TODO: can be removed once real amount's are used for expectedOutput in sendconfirm
-  const { btcUnit } = useContext(RatesContext);
+  const [fromAccountCode, setFromAccountCode] = useState<AccountCode>(code);
+  const [swapSendAmount, setSwapSendAmount] = useState<string>('');
+  const [swapMaxAmount, setSwapMaxAmount] = useState<TBalance | undefined>();
 
-  // Send
-  const [sellAccountCode, setSellAccountCode] = useState<string>(code);
-  const [sellAmount, setSellAmount] = useState<string>('');
-  const [maxSellAmount, setMaxSellAmount] = useState<TBalance | undefined>();
+  const [toAccountCode, setToAccountCode] = useState<AccountCode | undefined>(
+    accounts.find(account => account.code !== code)?.code
+  );
+  const [swapReceiveAmount, setSwapReceiveAmount] = useState<string>('');
+  const [routes, setRoutes] = useState<TSwapQuoteRoute[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | undefined>();
+  const [isFetchingRoutes, setIsFetchingRoutes] = useState(false);
+  const [routeError, setRouteError] = useState<string | undefined>();
 
-  // Receive
-  const [buyAccountCode, setBuyAccountCode] = useState<string>();
-  const [expectedOutput, setExpectedOutput] = useState<string>('');
+  const [isSwapping, setIsSwapping] = useState(false);
+  const [fwRequiredDialog, setFwRequiredDialog] = useState(false);
 
-  const [isConfirming, setIsConfirming] = useState(false);
+  const fromAccount = useMemo(
+    () => accounts.find(account => account.code === fromAccountCode),
+    [accounts, fromAccountCode],
+  );
+  const toAccount = useMemo(
+    () => accounts.find(account => account.code === toAccountCode),
+    [accounts, toAccountCode],
+  );
+  const selectedRoute = useMemo(
+    () => routes.find(route => route.routeId === selectedRouteId),
+    [routes, selectedRouteId]
+  );
 
-  // update max swappable amount (total coins of the account)
   useEffect(() => {
-    if (sellAccountCode) {
-      fetchBlance(sellAccountCode).then(setMaxSellAmount);
+    if (fromAccountCode) {
+      fetchBlance(fromAccountCode).then(setSwapMaxAmount);
     }
-  }, [sellAccountCode]);
+  }, [fromAccountCode]);
 
-  // not used yet, but loggin so we dont get a TS error
-  console.log(setExpectedOutput);
+  useEffect(() => {
+    if (toAccountCode || accounts.length === 0) {
+      return;
+    }
+    const firstDifferent = accounts.find(account => account.code !== fromAccountCode);
+    if (firstDifferent) {
+      setToAccountCode(firstDifferent.code);
+    }
+  }, [accounts, fromAccountCode, toAccountCode]);
 
-  const handleConfirm = () => {
-    // TODO: add api call to confirm a swap on the device
-    setIsConfirming(true);
+  useEffect(() => {
+    let isCancelled = false;
+    const sellAsset = toSwapkitAsset(fromAccount?.coinCode);
+    const buyAsset = toSwapkitAsset(toAccount?.coinCode);
+    const amount = Number(swapSendAmount);
+
+    if (
+      !sellAsset
+      || !buyAsset
+      || !swapSendAmount
+      || Number.isNaN(amount)
+      || amount <= 0
+      || fromAccountCode === toAccountCode
+    ) {
+      const hasAssetSelection = !!fromAccountCode && !!toAccountCode;
+      setRoutes([]);
+      setSelectedRouteId(undefined);
+      setSwapReceiveAmount('');
+      setRouteError(hasAssetSelection && (!sellAsset || !buyAsset)
+        ? 'Selected assets are not supported for quoting yet.'
+        : undefined);
+      setIsFetchingRoutes(false);
+      return;
+    }
+
+    setIsFetchingRoutes(true);
+    setRouteError(undefined);
+
+    const timeoutId = window.setTimeout(() => {
+      getSwapQuote({
+        buyAsset,
+        sellAmount: swapSendAmount,
+        sellAsset,
+      })
+        .then(response => {
+          if (isCancelled) {
+            return;
+          }
+          const nextRoutes = response.quote?.routes || [];
+          if (nextRoutes.length) {
+            setRoutes(nextRoutes);
+            const firstRouteId = nextRoutes[0]?.routeId;
+            setSelectedRouteId(currentRouteId => (
+              nextRoutes.some(route => route.routeId === currentRouteId)
+                ? currentRouteId
+                : firstRouteId
+            ));
+            return;
+          }
+          if (response.error) {
+            setRoutes([]);
+            setSelectedRouteId(undefined);
+            setSwapReceiveAmount('');
+            setRouteError(response.error);
+            return;
+          }
+          setRoutes([]);
+          setSelectedRouteId(undefined);
+          setSwapReceiveAmount('');
+          setRouteError('No quotes are available for the selected parameters.');
+        })
+        .catch((error: unknown) => {
+          if (isCancelled) {
+            return;
+          }
+          setRoutes([]);
+          setSelectedRouteId(undefined);
+          setSwapReceiveAmount('');
+          setRouteError(typeof error === 'string' && error
+            ? error
+            : 'Unable to fetch quotes right now. Please try again.');
+        })
+        .finally(() => {
+          if (!isCancelled) {
+            setIsFetchingRoutes(false);
+          }
+        });
+    }, 300);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [fromAccount?.coinCode, fromAccountCode, swapSendAmount, toAccount?.coinCode, toAccountCode]);
+
+  useEffect(() => {
+    setSwapReceiveAmount(selectedRoute?.expectedBuyAmount || '');
+  }, [selectedRoute]);
+
+  const getFirstReceiveAddress = async (accountCode: AccountCode): Promise<string | undefined> => {
+    const response = await getReceiveAddressList(accountCode)();
+    if (!response || response.length === 0 || response[0].addresses.length === 0) {
+      return;
+    }
+    return response[0].addresses[0].address;
+  };
+
+  const handleSwap = async () => {
+    if (!fromAccount || !toAccount || !selectedRoute) {
+      alertUser(t('unknownError', {
+        errorMessage: routeError || 'No route available for this swap.',
+      }));
+      return;
+    }
+
+    if (fromAccount.coinCode !== 'btc' && fromAccount.coinCode !== 'tbtc' && fromAccount.coinCode !== 'rbtc') {
+      alertUser(t('genericError'));
+      return;
+    }
+
+    const paymentRequestSupport = await hasPaymentRequest(fromAccount.code);
+    if (!paymentRequestSupport.success) {
+      if (paymentRequestSupport.errorCode === 'firmwareUpgradeRequired') {
+        setFwRequiredDialog(true);
+        return;
+      }
+      alertUser(t('unknownError', { errorMessage: paymentRequestSupport.errorMessage || 'Unsupported firmware' }));
+      return;
+    }
+
+    setIsSwapping(true);
+    try {
+      const sourceAddress = await getFirstReceiveAddress(fromAccount.code);
+      const destinationAddress = await getFirstReceiveAddress(toAccount.code);
+      if (!sourceAddress || !destinationAddress) {
+        alertUser(t('unknownError', { errorMessage: 'Missing receive address' }));
+        return;
+      }
+
+      const executeResponse = await executeSwap({
+        accountCode: fromAccount.code,
+        routeId: selectedRoute.routeId,
+        sourceAddress,
+        destinationAddress,
+        useHighestFee: true,
+        txNote: `Swapkit swap to ${toAccount.coinName}`,
+      });
+      if (executeResponse.success) {
+        alertUser(t('send.success'));
+      } else if (executeResponse.aborted) {
+        alertUser(t('send.abort'));
+      } else if (executeResponse.errorCode) {
+        alertUser(t(`send.error.${executeResponse.errorCode}`));
+      } else {
+        alertUser(t('unknownError', { errorMessage: executeResponse.error || 'Swap failed' }));
+      }
+    } finally {
+      setIsSwapping(false);
+    }
   };
 
   return (
@@ -92,21 +276,24 @@ export const Swap = ({
                     {t('generic.send')}
                   </span>
                 </Label>
-                {maxSellAmount && (
-                  <Button transparent className={style.maxButton}>
+                {swapMaxAmount && (
+                  <Button
+                    transparent
+                    className={style.maxButton}
+                    onClick={() => setSwapSendAmount(swapMaxAmount.available.amount)}>
                     Max
                     {' '}
-                    <AmountWithUnit amount={maxSellAmount.available} />
+                    <AmountWithUnit amount={swapMaxAmount.available} />
                   </Button>
                 )}
               </div>
               <InputWithAccountSelector
                 accounts={accounts}
                 id="swapSendAmount"
-                accountCode={sellAccountCode}
-                onChangeAccountCode={setSellAccountCode}
-                value={sellAmount}
-                onChangeValue={setSellAmount}
+                accountCode={fromAccountCode}
+                onChangeAccountCode={setFromAccountCode}
+                value={swapSendAmount}
+                onChangeValue={setSwapSendAmount}
               />
               <div className={style.flipContainer}>
                 <Button
@@ -123,21 +310,25 @@ export const Swap = ({
                     {t('generic.receiveWithoutCoinCode')}
                   </span>
                 </Label>
-                <Button transparent className={style.maxButton}>
-                  45678 ETH
-                </Button>
               </div>
               <InputWithAccountSelector
                 accounts={accounts}
                 id="swapGetAmount"
-                accountCode={buyAccountCode}
-                onChangeAccountCode={setBuyAccountCode}
-                value={expectedOutput}
+                accountCode={toAccountCode}
+                onChangeAccountCode={setToAccountCode}
+                value={swapReceiveAmount}
               />
-              <SwapServiceSelector />
+              <SwapServiceSelector
+                buyUnit={toAccount?.coinUnit}
+                error={routeError}
+                isLoading={isFetchingRoutes}
+                onChangeRouteId={setSelectedRouteId}
+                routes={routes}
+                selectedRouteId={selectedRouteId}
+              />
             </ViewContent>
             <ViewButtons>
-              <Button primary onClick={handleConfirm}>
+              <Button primary disabled={isSwapping || !selectedRoute} onClick={handleSwap}>
                 {t('generic.swap')}
               </Button>
               <BackButton>
@@ -145,98 +336,6 @@ export const Swap = ({
               </BackButton>
             </ViewButtons>
           </View>
-
-          <ConfirmSwap
-            isConfirming={isConfirming}
-            expectedOutput={{
-              amount: '16.99',
-              unit: 'ETH',
-              estimated: false, // TODO: consider estimation sign
-              conversions: {
-                BTC: '0.50000000',
-                AUD: '47\'646.46',
-                BRL: '176\'043.48',
-                CAD: '40\'043.48',
-                CHF: '25\'992.00',
-                CNY: '232\'759.88',
-                CZK: '691\'098.51',
-                EUR: '28\'504.84',
-                GBP: '24\'879.06',
-                HKD: '263\'275.64',
-                ILS: '104\'402.61',
-                JPY: '5\'201\'349.04',
-                KRW: '48\'747\'275.75',
-                NOK: '319\'863.34',
-                PLN: '512',
-                RUB: '512',
-                sat: '50000000',
-                SEK: '512',
-                SGD: '512',
-                USD: '33\'642.50',
-              }
-            }}
-            feeAmount={{
-              amount: '0.00001211',
-              unit: 'ETH',
-              estimated: false,
-              conversions: {
-                BTC: '0.00005000',
-                AUD: '4.46',
-                BRL: '17.48',
-                CAD: '40.48',
-                CHF: '25.00',
-                CNY: '232.88',
-                CZK: '691.51',
-                EUR: '28.84',
-                GBP: '24.06',
-                HKD: '263.64',
-                ILS: '104.61',
-                JPY: '5\'201.04',
-                KRW: '484.75',
-                NOK: '319.34',
-                PLN: '512',
-                RUB: '512',
-                sat: '1200',
-                SEK: '512',
-                SGD: '512',
-                USD: '33.50',
-              }
-            }}
-            sellAmount={{
-              amount: btcUnit === 'default' ? '0.50000000' : '5000000',
-              unit: btcUnit === 'default' ? 'BTC' : 'sat',
-              estimated: false,
-              conversions: {
-                BTC: '0.50000000',
-                AUD: '47\'646.46',
-                BRL: '176\'043.48',
-                CAD: '40\'043.48',
-                CHF: '26\'017.00',
-                CNY: '232\'759.88',
-                CZK: '691\'098.51',
-                EUR: '28\'504.84',
-                GBP: '24\'879.06',
-                HKD: '263\'275.64',
-                ILS: '104\'402.61',
-                JPY: '5\'201\'349.04',
-                KRW: '48\'747\'275.75',
-                NOK: '319\'863.34',
-                PLN: '512',
-                RUB: '512',
-                sat: '50000000',
-                SEK: '512',
-                SGD: '512',
-                USD: '33\'642.50',
-              }
-            }}
-          />
-
-          <SwapResult
-            buyAccountCode={buyAccountCode}
-            onContinue={() => console.log('new swap')}
-            result={undefined}
-          />
-
         </Main>
       </GuidedContent>
       <Guide>
@@ -248,6 +347,7 @@ export const Swap = ({
           }}
         />
       </Guide>
+      <FirmwareUpgradeRequiredDialog open={fwRequiredDialog} onClose={() => setFwRequiredDialog(false)} />
     </GuideWrapper>
   );
 };

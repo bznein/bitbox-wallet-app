@@ -85,68 +85,14 @@ const DropdownIndicator = (props: DropdownIndicatorProps<TOption>) => (
 export const SwapServiceSelector = () => {
   const options: TOption<string>[] = [{
     amount: {
-      amount: '0.04',
+      amount: '0',
       unit: 'BTC',
       estimated: false,
-      conversions: {
-        BTC: '0.005',
-        AUD: '512',
-        BRL: '512',
-        CAD: '512',
-        CHF: '512',
-        CNY: '512',
-        CZK: '512',
-        EUR: '512',
-        GBP: '512',
-        HKD: '512',
-        ILS: '512',
-        JPY: '512',
-        KRW: '512',
-        NOK: '512',
-        PLN: '512',
-        RUB: '512',
-        sat: '512',
-        SEK: '512',
-        SGD: '512',
-        USD: '512',
-      }
-    },
-    icon: '',
-    label: 'Thorchain',
-    isRecommended: true,
-    isFast: false,
-    value: 'thorchain'
-  }, {
-    amount: {
-      amount: '0.03',
-      unit: 'BTC',
-      estimated: false,
-      conversions: {
-        BTC: '0.005',
-        AUD: '512',
-        BRL: '512',
-        CAD: '512',
-        CHF: '512',
-        CNY: '512',
-        CZK: '512',
-        EUR: '512',
-        GBP: '512',
-        HKD: '512',
-        ILS: '512',
-        JPY: '512',
-        KRW: '512',
-        NOK: '512',
-        PLN: '512',
-        RUB: '512',
-        sat: '512',
-        SEK: '512',
-        SGD: '512',
-        USD: '512',
-      }
+      conversions: {}
     },
     icon: '',
     label: 'NEAR',
-    isRecommended: false,
+    isRecommended: true,
     isFast: true,
     value: 'near'
   }];
@@ -168,7 +114,7 @@ export const SwapServiceSelector = () => {
         }}
         isSearchable={false}
         options={options}
-        onChange={(option) => console.log(option?.value)}
+        onChange={() => {}}
         defaultValue={options[0]}
       />
     </section>
