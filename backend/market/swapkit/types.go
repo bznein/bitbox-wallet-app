@@ -4,14 +4,16 @@ import "encoding/json"
 
 // QuoteRequest represents a request to the /quote endpoint of the SwapKit API.
 type QuoteRequest struct {
-	SellAsset        string   `json:"sellAsset"`
-	BuyAsset         string   `json:"buyAsset"`
-	SellAmount       string   `json:"sellAmount"`
-	Providers        []string `json:"providers,omitempty"`
-	Slippage         *string  `json:"slippage,omitempty"`
-	AffiliateFee     *int     `json:"affiliateFee,omitempty"`
-	CfBoost          *bool    `json:"cfBoost,omitempty"`
-	MaxExecutionTime *int     `json:"maxExecutionTime,omitempty"`
+	SellAsset          string   `json:"sellAsset"`
+	BuyAsset           string   `json:"buyAsset"`
+	SellAmount         string   `json:"sellAmount"`
+	SourceAddress      string   `json:"sourceAddress,omitempty"`
+	DestinationAddress string   `json:"destinationAddress,omitempty"`
+	Providers          []string `json:"providers,omitempty"`
+	Slippage           *string  `json:"slippage,omitempty"`
+	AffiliateFee       *int     `json:"affiliateFee,omitempty"`
+	CfBoost            *bool    `json:"cfBoost,omitempty"`
+	MaxExecutionTime   *int     `json:"maxExecutionTime,omitempty"`
 }
 
 // QuoteResponse represents a response from the /quote endpoint of the SwapKit API.
@@ -20,28 +22,6 @@ type QuoteResponse struct {
 	Routes         []QuoteRoute `json:"routes"`
 	ProviderErrors []QuoteError `json:"providerErrors,omitempty"`
 	Error          string       `json:"error,omitempty"`
-}
-
-// SwapResponse represents a response from the /swap endpoint of the SwapKit API.
-type SwapResponse struct {
-	RouteID                      string          `json:"routeId"`
-	Providers                    []string        `json:"providers"`
-	SellAsset                    string          `json:"sellAsset"`
-	BuyAsset                     string          `json:"buyAsset"`
-	SellAmount                   string          `json:"sellAmount"`
-	ExpectedBuyAmount            string          `json:"expectedBuyAmount"`
-	ExpectedBuyAmountMaxSlippage string          `json:"expectedBuyAmountMaxSlippage"`
-	Tx                           json.RawMessage `json:"tx"`
-	ApprovalTx                   json.RawMessage `json:"approvalTx,omitempty"`
-	TargetAddress                string          `json:"targetAddress"`
-	Memo                         string          `json:"memo,omitempty"`
-	Fees                         []Fee           `json:"fees"`
-	EstimatedTime                json.RawMessage `json:"estimatedTime,omitempty"`
-	TotalSlippageBps             int             `json:"totalSlippageBps"`
-	Legs                         json.RawMessage `json:"legs,omitempty"`
-	Warnings                     json.RawMessage `json:"warnings,omitempty"`
-	Meta                         json.RawMessage `json:"meta,omitempty"`
-	NextActions                  []NextAction    `json:"nextActions,omitempty"`
 }
 
 // QuoteRoute represents a single route for a quote returned by the SwapKit API.
@@ -94,4 +74,40 @@ type QuoteError struct {
 	Provider  string `json:"provider"`
 	ErrorCode string `json:"errorCode"`
 	Message   string `json:"message"`
+}
+
+// SwapResponse represents a response from the /swap endpoint of the SwapKit API.
+type SwapResponse struct {
+	RouteID                      string          `json:"routeId"`
+	SwapID                       string          `json:"swapId,omitempty"`
+	Providers                    []string        `json:"providers"`
+	SellAsset                    string          `json:"sellAsset"`
+	BuyAsset                     string          `json:"buyAsset"`
+	SellAmount                   string          `json:"sellAmount"`
+	ExpectedBuyAmount            string          `json:"expectedBuyAmount"`
+	ExpectedBuyAmountMaxSlippage string          `json:"expectedBuyAmountMaxSlippage"`
+	Tx                           json.RawMessage `json:"tx"`
+	ApprovalTx                   json.RawMessage `json:"approvalTx,omitempty"`
+	TargetAddress                string          `json:"targetAddress"`
+	Memo                         string          `json:"memo,omitempty"`
+	Fees                         []Fee           `json:"fees"`
+	EstimatedTime                json.RawMessage `json:"estimatedTime,omitempty"`
+	TotalSlippageBps             float64         `json:"totalSlippageBps"`
+	Legs                         json.RawMessage `json:"legs,omitempty"`
+	Warnings                     json.RawMessage `json:"warnings,omitempty"`
+	Meta                         json.RawMessage `json:"meta,omitempty"`
+	NextActions                  []NextAction    `json:"nextActions,omitempty"`
+}
+
+type SwapRequest struct {
+	RouteID                    string `json:"routeId"`
+	SourceAddress              string `json:"sourceAddress"`
+	DestinationAddress         string `json:"destinationAddress"`
+	DisableBuildTx             *bool  `json:"disableBuildTx,omitempty"`
+	DisableBalanceCheck        *bool  `json:"disableBalanceCheck,omitempty"`
+	DisableEstimate            *bool  `json:"disableEstimate,omitempty"`
+	AllowSmartContractSender   *bool  `json:"allowSmartContractSender,omitempty"`
+	AllowSmartContractReceiver *bool  `json:"allowSmartContractReceiver,omitempty"`
+	DisableSecurityChecks      *bool  `json:"disableSecurityChecks,omitempty"`
+	OverrideSlippage           *bool  `json:"overrideSlippage,omitempty"`
 }

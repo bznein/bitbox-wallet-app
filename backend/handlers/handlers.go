@@ -15,9 +15,11 @@ import (
 	"os"
 	"runtime/debug"
 	"slices"
+	"strings"
 
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts"
+	accountsErrors "github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts/errors"
 	accountsTypes "github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts/types"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/banners"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/bitsurance"
@@ -235,7 +237,7 @@ func NewHandlers(
 	getAPIRouterNoError(apiRouter)("/market/vendors/{code}", handlers.getMarketVendors).Methods("GET")
 	getAPIRouterNoError(apiRouter)("/market/btcdirect/info/{action}/{code}", handlers.getMarketBtcDirectInfo).Methods("GET")
 	getAPIRouterNoError(apiRouter)("/swap/quote", handlers.postSwapkitQuote).Methods("POST")
-	getAPIRouterNoError(apiRouter)("/swap/execute", handlers.swapkitSwap).Methods("GET")
+	getAPIRouterNoError(apiRouter)("/swap/execute", handlers.postSwapkitSwap).Methods("POST")
 	getAPIRouter(apiRouter)("/market/moonpay/buy-info/{code}", handlers.getMarketMoonpayBuyInfo).Methods("GET")
 	getAPIRouterNoError(apiRouter)("/market/pocket/api-url/{action}", handlers.getMarketPocketURL).Methods("GET")
 	getAPIRouterNoError(apiRouter)("/market/pocket/verify-address", handlers.postPocketWidgetVerifyAddress).Methods("POST")
@@ -1681,36 +1683,115 @@ func (handlers *Handlers) postSwapkitQuote(r *http.Request) interface{} {
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		return result{Success: false, Error: err.Error()}
 	}
+	formatSwapkitQuoteError := func(err error) string {
+		raw := err.Error()
+		jsonStart := strings.Index(raw, "{")
+		if jsonStart == -1 {
+			return raw
+		}
+		var payload struct {
+			Error   string `json:"error"`
+			Message string `json:"message"`
+		}
+		if unmarshalErr := json.Unmarshal([]byte(raw[jsonStart:]), &payload); unmarshalErr != nil {
+			return raw
+		}
+		if payload.Message != "" {
+			return payload.Message
+		}
+		if payload.Error != "" {
+			return payload.Error
+		}
+		return raw
+	}
 
 	s := swapkit.NewClient("0722e09f-9d3f-4817-a870-069848d03ee9")
 	request.Providers = []string{"NEAR"}
 
 	quoteResponse, err := s.Quote(context.Background(), &request)
 	if err != nil {
+		handlers.log.WithError(err).WithFields(logrus.Fields{
+			"sellAsset":          request.SellAsset,
+			"buyAsset":           request.BuyAsset,
+			"sellAmount":         request.SellAmount,
+			"providers":          request.Providers,
+			"sourceAddress":      request.SourceAddress,
+			"destinationAddress": request.DestinationAddress,
+		}).Error("swapkit quote request failed")
 		return result{
 			Success: false,
-			Error:   err.Error(),
+			Error:   formatSwapkitQuoteError(err),
 		}
 	}
 
 	res := result{
-		Success: quoteResponse.Error != "",
+		Success: quoteResponse.Error == "",
 		Error:   quoteResponse.Error, // Surface the response error to the top-level
+		Quote:   quoteResponse,
 	}
-	if res.Success {
-		res.Quote = quoteResponse
+	if !res.Success {
+		handlers.log.WithFields(logrus.Fields{
+			"sellAsset":          request.SellAsset,
+			"buyAsset":           request.BuyAsset,
+			"sellAmount":         request.SellAmount,
+			"providers":          request.Providers,
+			"sourceAddress":      request.SourceAddress,
+			"destinationAddress": request.DestinationAddress,
+			"swapkitError":       quoteResponse.Error,
+		}).Warn("swapkit quote response error")
 	}
 	return res
 }
 
-func (handlers *Handlers) swapkitSwap(r *http.Request) interface{} {
+func swapkitSellAmountToSats(amount string) (*big.Int, error) {
+	amountRat, ok := new(big.Rat).SetString(amount)
+	if !ok {
+		return nil, errp.New("Invalid amount")
+	}
+	if amountRat.Sign() <= 0 {
+		return nil, errp.New("Invalid amount")
+	}
+	if strings.ContainsAny(amount, ".eE") {
+		satsRat := coinpkg.Btc2Sat(amountRat)
+		if satsRat.Denom().Cmp(big.NewInt(1)) != 0 {
+			return nil, errp.New("Invalid amount")
+		}
+		return satsRat.Num(), nil
+	}
+	intAmount, ok := new(big.Int).SetString(amount, 10)
+	if !ok || intAmount.Sign() <= 0 {
+		return nil, errp.New("Invalid amount")
+	}
+	return intAmount, nil
+}
+
+func hasProvider(providers []string, provider string) bool {
+	for _, name := range providers {
+		if strings.EqualFold(name, provider) {
+			return true
+		}
+	}
+	return false
+}
+
+func (handlers *Handlers) postSwapkitSwap(r *http.Request) interface{} {
 	type result struct {
-		Success bool                  `json:"success"`
-		Error   string                `json:"error,omitempty"`
-		Swap    *swapkit.SwapResponse `json:"swap,omitempty"`
+		Success   bool                  `json:"success"`
+		Error     string                `json:"error,omitempty"`
+		ErrorCode string                `json:"errorCode,omitempty"`
+		Aborted   bool                  `json:"aborted,omitempty"`
+		TxID      string                `json:"txId,omitempty"`
+		Swap      *swapkit.SwapResponse `json:"swap,omitempty"`
 	}
 
-	var request swapkit.SwapRequest
+	var request struct {
+		swapkit.SwapRequest
+		AccountCode            accountsTypes.Code `json:"accountCode"`
+		FeeTarget              string             `json:"feeTarget,omitempty"`
+		CustomFee              string             `json:"customFee,omitempty"`
+		UseHighestFee          bool               `json:"useHighestFee,omitempty"`
+		TxNote                 string             `json:"txNote,omitempty"`
+	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		return result{Success: false, Error: err.Error()}
@@ -1722,21 +1803,116 @@ func (handlers *Handlers) swapkitSwap(r *http.Request) interface{} {
 		return &b
 	}
 
-	request.DisableBalanceCheck = boolPtr(true)
-	request.DisableEstimate = boolPtr(true)
+	request.SwapRequest.DisableBalanceCheck = boolPtr(true)
+	request.SwapRequest.DisableEstimate = boolPtr(true)
+	request.SwapRequest.DisableBuildTx = boolPtr(true)
 
-	swapResponse, err := s.Swap(context.Background(), &request)
+	swapResponse, err := s.Swap(context.Background(), &request.SwapRequest)
+	if err != nil {
+		handlers.log.WithError(err).WithFields(logrus.Fields{
+			"routeId":            request.RouteID,
+			"sourceAddress":      request.SourceAddress,
+			"destinationAddress": request.DestinationAddress,
+		}).Error("swapkit swap request failed")
+		return result{
+			Success: false,
+			Error:   err.Error(),
+		}
+	}
+	if !hasProvider(swapResponse.Providers, "NEAR") {
+		return result{
+			Success: false,
+			Error:   "Unsupported swap provider",
+		}
+	}
+	if swapResponse.SellAsset != "" && !strings.HasPrefix(strings.ToUpper(swapResponse.SellAsset), "BTC.") {
+		return result{
+			Success: false,
+			Error:   "Only BTC sell asset swaps are supported",
+		}
+	}
+
+	account, err := handlers.backend.GetAccountFromCode(request.AccountCode)
 	if err != nil {
 		return result{
 			Success: false,
 			Error:   err.Error(),
 		}
 	}
-
-	// Here we need to manually build the TX.
-	return result{
-		Success: true,
-		Swap:    swapResponse,
+	if account.Coin().Code() != coinpkg.CodeBTC {
+		return result{
+			Success: false,
+			Error:   "Only BTC swaps are supported",
+		}
 	}
+
+	var recipientAddress string
+	var amountString string
+
+	if swapResponse.TargetAddress == "" {
+		return result{
+			Success: false,
+			Error:   "Missing swap target address",
+		}
+	}
+	if swapResponse.SellAmount == "" {
+		return result{
+			Success: false,
+			Error:   "Missing swap sell amount",
+		}
+	}
+	sellAmountSats, err := swapkitSellAmountToSats(swapResponse.SellAmount)
+	if err != nil {
+		return result{
+			Success: false,
+			Error:   err.Error(),
+		}
+	}
+	recipientAddress = swapResponse.TargetAddress
+	amount := coinpkg.NewAmount(sellAmountSats)
+	amountString = account.Coin().FormatAmount(amount, false)
+
+	feeTargetCode := accounts.FeeTargetCodeNormal
+	if !request.UseHighestFee {
+		if request.FeeTarget != "" {
+			feeTargetCode, err = accounts.NewFeeTargetCode(request.FeeTarget)
+			if err != nil {
+				return result{
+					Success: false,
+					Error:   err.Error(),
+				}
+			}
+		} else {
+			_, defaultFeeTarget := account.FeeTargets()
+			feeTargetCode = defaultFeeTarget
+		}
+	}
+
+	txArgs := &accounts.TxProposalArgs{
+		RecipientAddress: recipientAddress,
+		Amount:           coinpkg.NewSendAmount(amountString),
+		FeeTargetCode:    feeTargetCode,
+		CustomFee:        request.CustomFee,
+		UseHighestFee:    request.UseHighestFee,
+		PaymentRequest:   nil,
+	}
+	if _, _, _, err := account.TxProposal(txArgs); err != nil {
+		if validationErr, ok := errp.Cause(err).(accountsErrors.TxValidationError); ok {
+			return result{Success: false, ErrorCode: validationErr.Error()}
+		}
+		if errCode, ok := errp.Cause(err).(errp.ErrorCode); ok {
+			return result{Success: false, ErrorCode: string(errCode)}
+		}
+		return result{Success: false, Error: err.Error()}
+	}
+	txID, err := account.SendTx(request.TxNote)
+	if errp.Cause(err) == keystore.ErrSigningAborted || errp.Cause(err) == errp.ErrUserAbort {
+		return result{Success: false, Aborted: true}
+	}
+	if err != nil {
+		return result{Success: false, Error: err.Error()}
+	}
+
+	return result{Success: true, Swap: swapResponse, TxID: txID}
 
 }

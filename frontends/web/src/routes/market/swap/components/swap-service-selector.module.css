@@ -52,3 +52,22 @@
     display: inline-block;
     padding-right: .4ch;
 }
+
+.fee {
+    color: var(--color-gray);
+    display: block;
+    font-size: var(--size-small);
+    line-height: 1.3;
+}
+
+.statusText {
+    color: var(--color-gray);
+    font-size: var(--size-small);
+    margin: var(--space-quarter) 0 0;
+}
+
+.errorText {
+    color: var(--color-danger);
+    font-size: var(--size-small);
+    margin: var(--space-quarter) 0 0;
+}

@@ -242,7 +242,7 @@ export const Swap = ({
       } else if (executeResponse.aborted) {
         alertUser(t('send.abort'));
       } else if (executeResponse.errorCode) {
-        alertUser(t(`send.error.${executeResponse.errorCode}`));
+        alertUser(t(['send.error', executeResponse.errorCode].join('.')));
       } else {
         alertUser(t('unknownError', { errorMessage: executeResponse.error || 'Swap failed' }));
       }

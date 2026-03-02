@@ -2,7 +2,10 @@
 
 import type { AccountCode } from './account';
 import type { FeeTargetCode } from './account';
-import { apiPost } from '@/utils/request';
+import { runningInQtWebEngine, runningOnMobile } from '@/utils/env';
+import { apiPost, apiURL } from '@/utils/request';
+import { call } from '@/utils/transport-qt';
+import { mobileCall } from '@/utils/transport-mobile';
 
 export type TSwapQuoteRequest = {
   buyAsset: string;
@@ -15,6 +18,7 @@ export type TSwapQuoteRequest = {
 export type TSwapQuoteRoute = {
   routeId: string;
   providers: string[];
+  fees: TSwapFee[];
   expectedBuyAmount: string;
   expectedBuyAmountMaxSlippage?: string;
   sellAmount: string;
@@ -22,21 +26,48 @@ export type TSwapQuoteRoute = {
   buyAsset: string;
 };
 
+export type TSwapFee = {
+  type: string;
+  amount: string;
+  asset: string;
+  chain: string;
+  protocol: string;
+};
+
 export type TSwapQuoteResponse = {
-  success: true;
-  quote: {
+  success: boolean;
+  error?: string;
+  quote?: {
     quoteId: string;
     routes: TSwapQuoteRoute[];
   };
-} | {
-  success: false;
-  error: string;
+};
+
+const postSwapQuote = (data: TSwapQuoteRequest): Promise<TSwapQuoteResponse> => {
+  if (runningInQtWebEngine()) {
+    return call(JSON.stringify({
+      method: 'POST',
+      endpoint: 'swap/quote',
+      body: JSON.stringify(data),
+    })) as Promise<TSwapQuoteResponse>;
+  }
+  if (runningOnMobile()) {
+    return mobileCall(JSON.stringify({
+      method: 'POST',
+      endpoint: 'swap/quote',
+      body: JSON.stringify(data),
+    })) as Promise<TSwapQuoteResponse>;
+  }
+  return fetch(apiURL('swap/quote'), {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then(response => response.json());
 };
 
 export const getSwapQuote = (
   data: TSwapQuoteRequest,
 ): Promise<TSwapQuoteResponse> => {
-  return apiPost('swap/quote', data);
+  return postSwapQuote(data);
 };
 
 export type TSwapExecuteRequest = {
