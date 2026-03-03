@@ -1743,26 +1743,15 @@ func (handlers *Handlers) postSwapkitQuote(r *http.Request) interface{} {
 	return res
 }
 
-func swapkitSellAmountToSats(amount string) (*big.Int, error) {
-	amountRat, ok := new(big.Rat).SetString(amount)
-	if !ok {
-		return nil, errp.New("Invalid amount")
+func swapkitSellAmountToCoinAmount(amount string, accountCoin coinpkg.Coin) (coinpkg.Amount, error) {
+	parsedAmount, err := coinpkg.NewAmountFromString(amount, coinpkg.DecimalsExp(accountCoin))
+	if err != nil {
+		return coinpkg.Amount{}, errp.New("Invalid amount")
 	}
-	if amountRat.Sign() <= 0 {
-		return nil, errp.New("Invalid amount")
+	if parsedAmount.BigInt().Sign() <= 0 {
+		return coinpkg.Amount{}, errp.New("Invalid amount")
 	}
-	if strings.ContainsAny(amount, ".eE") {
-		satsRat := coinpkg.Btc2Sat(amountRat)
-		if satsRat.Denom().Cmp(big.NewInt(1)) != 0 {
-			return nil, errp.New("Invalid amount")
-		}
-		return satsRat.Num(), nil
-	}
-	intAmount, ok := new(big.Int).SetString(amount, 10)
-	if !ok || intAmount.Sign() <= 0 {
-		return nil, errp.New("Invalid amount")
-	}
-	return intAmount, nil
+	return parsedAmount, nil
 }
 
 func hasProvider(providers []string, provider string) bool {
@@ -1772,6 +1761,18 @@ func hasProvider(providers []string, provider string) bool {
 		}
 	}
 	return false
+}
+
+func isSwapSellAssetCompatible(coinCode coinpkg.Code, swapSellAsset string) bool {
+	asset := strings.ToUpper(swapSellAsset)
+	switch coinCode {
+	case coinpkg.CodeBTC:
+		return strings.HasPrefix(asset, "BTC.")
+	case coinpkg.CodeETH:
+		return strings.HasPrefix(asset, "ETH.")
+	default:
+		return strings.HasPrefix(string(coinCode), "eth-erc20-") && strings.HasPrefix(asset, "ETH.")
+	}
 }
 
 func (handlers *Handlers) postSwapkitSwap(r *http.Request) interface{} {
@@ -1825,12 +1826,6 @@ func (handlers *Handlers) postSwapkitSwap(r *http.Request) interface{} {
 			Error:   "Unsupported swap provider",
 		}
 	}
-	if swapResponse.SellAsset != "" && !strings.HasPrefix(strings.ToUpper(swapResponse.SellAsset), "BTC.") {
-		return result{
-			Success: false,
-			Error:   "Only BTC sell asset swaps are supported",
-		}
-	}
 
 	account, err := handlers.backend.GetAccountFromCode(request.AccountCode)
 	if err != nil {
@@ -1839,10 +1834,10 @@ func (handlers *Handlers) postSwapkitSwap(r *http.Request) interface{} {
 			Error:   err.Error(),
 		}
 	}
-	if account.Coin().Code() != coinpkg.CodeBTC {
+	if swapResponse.SellAsset != "" && !isSwapSellAssetCompatible(account.Coin().Code(), swapResponse.SellAsset) {
 		return result{
 			Success: false,
-			Error:   "Only BTC swaps are supported",
+			Error:   "Swap sell asset does not match selected source account",
 		}
 	}
 
@@ -1861,7 +1856,7 @@ func (handlers *Handlers) postSwapkitSwap(r *http.Request) interface{} {
 			Error:   "Missing swap sell amount",
 		}
 	}
-	sellAmountSats, err := swapkitSellAmountToSats(swapResponse.SellAmount)
+	sellAmount, err := swapkitSellAmountToCoinAmount(swapResponse.SellAmount, account.Coin())
 	if err != nil {
 		return result{
 			Success: false,
@@ -1869,8 +1864,7 @@ func (handlers *Handlers) postSwapkitSwap(r *http.Request) interface{} {
 		}
 	}
 	recipientAddress = swapResponse.TargetAddress
-	amount := coinpkg.NewAmount(sellAmountSats)
-	amountString = account.Coin().FormatAmount(amount, false)
+	amountString = account.Coin().FormatAmount(sellAmount, false)
 
 	feeTargetCode := accounts.FeeTargetCodeNormal
 	if !request.UseHighestFee {

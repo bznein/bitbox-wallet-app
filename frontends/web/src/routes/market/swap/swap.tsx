@@ -36,13 +36,24 @@ const toSwapkitAsset = (coinCode: CoinCode | undefined): string | undefined => {
   if (!coinCode) {
     return;
   }
+  const erc20AssetMap: Partial<Record<CoinCode, string>> = {
+    'eth-erc20-usdt': 'ETH.USDT-0xdac17f958d2ee523a2206206994597c13d831ec7',
+    'eth-erc20-usdc': 'ETH.USDC-0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    'eth-erc20-link': 'ETH.LINK-0x514910771af9ca656af840dff83e8264ecf986ca',
+    'eth-erc20-bat': 'ETH.BAT-0x0d8775f648430679a709e98d2b0cb6250d2887ef',
+    'eth-erc20-mkr': 'ETH.MKR-0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2',
+    'eth-erc20-zrx': 'ETH.ZRX-0xe41d2489571d322189246dafa5ebde1f4699f498',
+    'eth-erc20-wbtc': 'ETH.WBTC-0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+    'eth-erc20-paxg': 'ETH.PAXG-0x45804880De22913dAFE09f4980848ECE6EcbAf78',
+    'eth-erc20-dai0x6b17': 'ETH.DAI-0x6b175474e89094c44da98b954eedeac495271d0f',
+  };
+  if (coinCode in erc20AssetMap) {
+    return erc20AssetMap[coinCode];
+  }
   switch (coinCode) {
   case 'btc':
-  case 'tbtc':
-  case 'rbtc':
     return 'BTC.BTC';
   case 'eth':
-  case 'sepeth':
     return 'ETH.ETH';
   default:
     return;
@@ -205,19 +216,16 @@ export const Swap = ({
       return;
     }
 
-    if (fromAccount.coinCode !== 'btc' && fromAccount.coinCode !== 'tbtc' && fromAccount.coinCode !== 'rbtc') {
-      alertUser(t('genericError'));
-      return;
-    }
-
-    const paymentRequestSupport = await hasPaymentRequest(fromAccount.code);
-    if (!paymentRequestSupport.success) {
-      if (paymentRequestSupport.errorCode === 'firmwareUpgradeRequired') {
-        setFwRequiredDialog(true);
+    if (fromAccount.coinCode === 'btc') {
+      const paymentRequestSupport = await hasPaymentRequest(fromAccount.code);
+      if (!paymentRequestSupport.success) {
+        if (paymentRequestSupport.errorCode === 'firmwareUpgradeRequired') {
+          setFwRequiredDialog(true);
+          return;
+        }
+        alertUser(t('unknownError', { errorMessage: paymentRequestSupport.errorMessage || 'Unsupported firmware' }));
         return;
       }
-      alertUser(t('unknownError', { errorMessage: paymentRequestSupport.errorMessage || 'Unsupported firmware' }));
-      return;
     }
 
     setIsSwapping(true);
