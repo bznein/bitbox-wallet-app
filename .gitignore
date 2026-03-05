@@ -1,6 +1,7 @@
 /appfolder.dev
 /cmd/playground/
 **/*/output.log
+__pycache__/
 
 ### VSCode & Jetbrains ###
 .vscode/
@@ -55,3 +56,6 @@ tags
 # Playwright files
 /frontends/web/playwright-report/
 /frontends/web/test-results/
+
+# Rust workspace build artifacts.
+/rust/target/

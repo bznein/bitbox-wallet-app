@@ -1,0 +1,8 @@
+{
+  "backend_api_endpoint_count": 65,
+  "event_subject_count": 15,
+  "mobile_exported_function_count": 11,
+  "qt_ffi_export_count": 7,
+  "web_api_call_count": 116,
+  "web_subscription_count": 21
+}

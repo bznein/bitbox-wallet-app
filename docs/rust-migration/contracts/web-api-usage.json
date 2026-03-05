@@ -1,0 +1,944 @@
+{
+  "calls": [
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/balance",
+      "function": "apiGet",
+      "line": 220,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/fee-targets",
+      "function": "apiGet",
+      "line": 368,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/has-payment-request",
+      "function": "apiGet",
+      "line": 410,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/has-secure-output",
+      "function": "apiGet",
+      "line": 399,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/info",
+      "function": "apiGet",
+      "line": 158,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/receive-addresses",
+      "function": "apiGet",
+      "line": 299,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/status",
+      "function": "apiGet",
+      "line": 122,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/transaction?id=${id}",
+      "function": "apiGet",
+      "line": 267,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/transactions",
+      "function": "apiGet",
+      "line": 263,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/utxos",
+      "function": "apiGet",
+      "line": 389,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "accounts",
+      "function": "apiGet",
+      "line": 66,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "accounts/balance-summary",
+      "function": "apiGet",
+      "line": 102,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "aopp",
+      "function": "apiGet",
+      "line": 54,
+      "source": "frontends/web/src/api/aopp.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "banners/${msgKey}",
+      "function": "apiGet",
+      "line": 19,
+      "source": "frontends/web/src/api/banners.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "bitsurance/url",
+      "function": "apiGet",
+      "line": 26,
+      "source": "frontends/web/src/api/bitsurance.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "bluetooth/state",
+      "function": "apiGet",
+      "line": 26,
+      "source": "frontends/web/src/api/bluetooth.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "chart-data",
+      "function": "apiGet",
+      "line": 191,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "coins/btc/parse-external-amount?amount=${amount}",
+      "function": "apiGet",
+      "line": 36,
+      "source": "frontends/web/src/api/coins.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "coins/convert-from-fiat?from=${fiatUnit}&to=${coinCode}&amount=${amount}",
+      "function": "apiGet",
+      "line": 58,
+      "source": "frontends/web/src/api/coins.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "coins/convert-to-plain-fiat?from=${coinCode}&to=${fiatUnit}&amount=${amount}",
+      "function": "apiGet",
+      "line": 74,
+      "source": "frontends/web/src/api/coins.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "config/default",
+      "function": "apiGet",
+      "line": 65,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "detect-dark-theme",
+      "function": "apiGet",
+      "line": 10,
+      "source": "frontends/web/src/api/darktheme.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "dev-servers",
+      "function": "apiGet",
+      "line": 53,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/${deviceID}/info",
+      "function": "apiGet",
+      "line": 22,
+      "source": "frontends/web/src/api/bitbox01.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02-bootloader/${deviceID}/info",
+      "function": "apiGet",
+      "line": 48,
+      "source": "frontends/web/src/api/bitbox02bootloader.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02-bootloader/${deviceID}/show-firmware-hash-enabled",
+      "function": "apiGet",
+      "line": 71,
+      "source": "frontends/web/src/api/bitbox02bootloader.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02-bootloader/${deviceID}/status",
+      "function": "apiGet",
+      "line": 16,
+      "source": "frontends/web/src/api/bitbox02bootloader.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/attestation",
+      "function": "apiGet",
+      "line": 94,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/backups/list",
+      "function": "apiGet",
+      "line": 21,
+      "source": "frontends/web/src/api/backup.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/channel-hash",
+      "function": "apiGet",
+      "line": 153,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/check-sdcard",
+      "function": "apiGet",
+      "line": 40,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/info",
+      "function": "apiGet",
+      "line": 34,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/root-fingerprint",
+      "function": "apiGet",
+      "line": 173,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/status",
+      "function": "apiGet",
+      "line": 144,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/version",
+      "function": "apiGet",
+      "line": 81,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "devices/registered",
+      "function": "apiGet",
+      "line": 12,
+      "source": "frontends/web/src/api/devices.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "keystore/${rootFingerprint}/features",
+      "function": "apiGet",
+      "line": 44,
+      "source": "frontends/web/src/api/keystores.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "keystore/show-backup-banner/${rootFingerprint}",
+      "function": "apiGet",
+      "line": 16,
+      "source": "frontends/web/src/api/backupBanner.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "keystores",
+      "function": "apiGet",
+      "line": 28,
+      "source": "frontends/web/src/api/keystores.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "market/bitrefill/info/${action}/${code}",
+      "function": "apiGet",
+      "line": 107,
+      "source": "frontends/web/src/api/market.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "market/btcdirect-otc/supported/${code}?region=${region}",
+      "function": "apiGet",
+      "line": 129,
+      "source": "frontends/web/src/api/market.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "market/btcdirect/info/${action}/${code}",
+      "function": "apiGet",
+      "line": 90,
+      "source": "frontends/web/src/api/market.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "market/deals/${action}/${accountCode}?region=${region}",
+      "function": "apiGet",
+      "line": 43,
+      "source": "frontends/web/src/api/market.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "market/moonpay/buy-info/${code}",
+      "function": "apiGet",
+      "line": 53,
+      "source": "frontends/web/src/api/market.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "market/pocket/api-url/${action}",
+      "function": "apiGet",
+      "line": 76,
+      "source": "frontends/web/src/api/market.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "market/region-codes",
+      "function": "apiGet",
+      "line": 7,
+      "source": "frontends/web/src/api/market.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "market/vendors/${code}",
+      "function": "apiGet",
+      "line": 116,
+      "source": "frontends/web/src/api/market.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "native-locale",
+      "function": "apiGet",
+      "line": 6,
+      "source": "frontends/web/src/api/nativelocale.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "online",
+      "function": "apiGet",
+      "line": 7,
+      "source": "frontends/web/src/api/online.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "qr?data=${encodeURIComponent(data)}",
+      "function": "apiGet",
+      "line": 60,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "supported-coins",
+      "function": "apiGet",
+      "line": 25,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "testing",
+      "function": "apiGet",
+      "line": 49,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "update",
+      "function": "apiGet",
+      "line": 19,
+      "source": "frontends/web/src/api/version.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "using-mobile-data",
+      "function": "apiGet",
+      "line": 7,
+      "source": "frontends/web/src/api/mobiledata.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "version",
+      "function": "apiGet",
+      "line": 15,
+      "source": "frontends/web/src/api/version.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "account-add",
+      "function": "apiPost",
+      "line": 421,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${accountCode}/tx-proposal",
+      "function": "apiPost",
+      "line": 333,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/eth-sign-msg",
+      "function": "apiPost",
+      "line": 440,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/eth-sign-typed-msg",
+      "function": "apiPost",
+      "line": 444,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/eth-sign-wallet-connect-tx",
+      "function": "apiPost",
+      "line": 448,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/export",
+      "function": "apiPost",
+      "line": 277,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/init",
+      "function": "apiPost",
+      "line": 163,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/notes/tx",
+      "function": "apiPost",
+      "line": 259,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/sendtx",
+      "function": "apiPost",
+      "line": 352,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/sign-address",
+      "function": "apiPost",
+      "line": 462,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/verify-address",
+      "function": "apiPost",
+      "line": 372,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "account/${code}/verify-extended-public-key",
+      "function": "apiPost",
+      "line": 284,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "accounts/eth-account-code",
+      "function": "apiPost",
+      "line": 111,
+      "source": "frontends/web/src/api/account.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "accounts/reinitialize",
+      "function": "apiPost",
+      "line": 45,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "aopp/approve",
+      "function": "apiPost",
+      "line": 46,
+      "source": "frontends/web/src/api/aopp.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "aopp/cancel",
+      "function": "apiPost",
+      "line": 42,
+      "source": "frontends/web/src/api/aopp.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "aopp/choose-account",
+      "function": "apiPost",
+      "line": 50,
+      "source": "frontends/web/src/api/aopp.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "authenticate",
+      "function": "apiPost",
+      "line": 108,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "bitsurance/lookup",
+      "function": "apiPost",
+      "line": 34,
+      "source": "frontends/web/src/api/bitsurance.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "bluetooth/connect",
+      "function": "apiPost",
+      "line": 30,
+      "source": "frontends/web/src/api/bluetooth.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "cancel-connect-keystore",
+      "function": "apiPost",
+      "line": 100,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "certs/download",
+      "function": "apiPost",
+      "line": 15,
+      "source": "frontends/web/src/api/node.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "coins/btc/set-unit",
+      "function": "apiPost",
+      "line": 27,
+      "source": "frontends/web/src/api/coins.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "connect-keystore",
+      "function": "apiPost",
+      "line": 40,
+      "source": "frontends/web/src/api/keystores.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02-bootloader/${deviceID}/reboot",
+      "function": "apiPost",
+      "line": 60,
+      "source": "frontends/web/src/api/bitbox02bootloader.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02-bootloader/${deviceID}/screen-rotate",
+      "function": "apiPost",
+      "line": 66,
+      "source": "frontends/web/src/api/bitbox02bootloader.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02-bootloader/${deviceID}/set-firmware-hash-enabled",
+      "function": "apiPost",
+      "line": 79,
+      "source": "frontends/web/src/api/bitbox02bootloader.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02-bootloader/${deviceID}/upgrade-firmware",
+      "function": "apiPost",
+      "line": 54,
+      "source": "frontends/web/src/api/bitbox02bootloader.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/backups/check",
+      "function": "apiPost",
+      "line": 101,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/backups/create",
+      "function": "apiPost",
+      "line": 110,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/backups/restore",
+      "function": "apiPost",
+      "line": 117,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/bluetooth/toggle-enabled",
+      "function": "apiPost",
+      "line": 218,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/change-password",
+      "function": "apiPost",
+      "line": 222,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/channel-hash-verify",
+      "function": "apiPost",
+      "line": 160,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/goto-startup-settings",
+      "function": "apiPost",
+      "line": 181,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/insert-sdcard",
+      "function": "apiPost",
+      "line": 46,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/invoke-bip85",
+      "function": "apiPost",
+      "line": 177,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/reset",
+      "function": "apiPost",
+      "line": 28,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/restore-from-mnemonic",
+      "function": "apiPost",
+      "line": 131,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/set-device-name",
+      "function": "apiPost",
+      "line": 53,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/set-mnemonic-passphrase-enabled",
+      "function": "apiPost",
+      "line": 88,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/set-password",
+      "function": "apiPost",
+      "line": 167,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/show-mnemonic",
+      "function": "apiPost",
+      "line": 125,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": true,
+      "endpoint": "devices/bitbox02/${deviceID}/upgrade-firmware",
+      "function": "apiPost",
+      "line": 121,
+      "source": "frontends/web/src/api/bitbox02.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "electrum/check",
+      "function": "apiPost",
+      "line": 30,
+      "source": "frontends/web/src/api/node.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "export-log",
+      "function": "apiPost",
+      "line": 133,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "force-auth",
+      "function": "apiPost",
+      "line": 112,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "market/pocket/verify-address",
+      "function": "apiPost",
+      "line": 64,
+      "source": "frontends/web/src/api/market.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "notes/export",
+      "function": "apiPost",
+      "line": 137,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "notes/import",
+      "function": "apiPost",
+      "line": 149,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "notify-user",
+      "function": "apiPost",
+      "line": 6,
+      "source": "frontends/web/src/api/system.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "on-auth-setting-changed",
+      "function": "apiPost",
+      "line": 129,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "open",
+      "function": "apiPost",
+      "line": 10,
+      "source": "frontends/web/src/api/system.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "rename-account",
+      "function": "apiPost",
+      "line": 41,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "set-account-active",
+      "function": "apiPost",
+      "line": 29,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "set-dark-theme",
+      "function": "apiPost",
+      "line": 6,
+      "source": "frontends/web/src/api/darktheme.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "set-token-active",
+      "function": "apiPost",
+      "line": 37,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "set-watchonly",
+      "function": "apiPost",
+      "line": 104,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "socksproxy/check",
+      "function": "apiPost",
+      "line": 69,
+      "source": "frontends/web/src/api/backend.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "test/deregister",
+      "function": "apiPost",
+      "line": 36,
+      "source": "frontends/web/src/api/keystores.ts"
+    },
+    {
+      "dynamic": false,
+      "endpoint": "test/register",
+      "function": "apiPost",
+      "line": 32,
+      "source": "frontends/web/src/api/keystores.ts"
+    }
+  ],
+  "subscriptions": [
+    {
+      "dynamic": true,
+      "line": 40,
+      "source": "frontends/web/src/api/accountsync.ts",
+      "subject": "account/${code}/status"
+    },
+    {
+      "dynamic": true,
+      "line": 51,
+      "source": "frontends/web/src/api/accountsync.ts",
+      "subject": "account/${code}/sync-done"
+    },
+    {
+      "dynamic": true,
+      "line": 27,
+      "source": "frontends/web/src/api/accountsync.ts",
+      "subject": "account/${code}/synced-addresses-count"
+    },
+    {
+      "dynamic": false,
+      "line": 15,
+      "source": "frontends/web/src/api/accountsync.ts",
+      "subject": "accounts"
+    },
+    {
+      "dynamic": false,
+      "line": 60,
+      "source": "frontends/web/src/api/aopp.ts",
+      "subject": "aopp"
+    },
+    {
+      "dynamic": false,
+      "line": 125,
+      "source": "frontends/web/src/api/backend.ts",
+      "subject": "auth"
+    },
+    {
+      "dynamic": false,
+      "line": 44,
+      "source": "frontends/web/src/api/subscribe.ts",
+      "subject": "backend/connected"
+    },
+    {
+      "dynamic": true,
+      "line": 26,
+      "source": "frontends/web/src/api/banners.ts",
+      "subject": "banners/${msgKey}"
+    },
+    {
+      "dynamic": false,
+      "line": 36,
+      "source": "frontends/web/src/api/bluetooth.ts",
+      "subject": "bluetooth/state"
+    },
+    {
+      "dynamic": true,
+      "line": 18,
+      "source": "frontends/web/src/api/coins.ts",
+      "subject": "coins/${coinCode}/headers/status"
+    },
+    {
+      "dynamic": false,
+      "line": 91,
+      "source": "frontends/web/src/api/backend.ts",
+      "subject": "connect-keystore"
+    },
+    {
+      "dynamic": true,
+      "line": 23,
+      "source": "frontends/web/src/api/bitbox02bootloader.ts",
+      "subject": "devices/bitbox02-bootloader/${deviceID}/status"
+    },
+    {
+      "dynamic": true,
+      "line": 214,
+      "source": "frontends/web/src/api/bitbox02.ts",
+      "subject": "devices/bitbox02/${deviceID}/attestationCheckDone"
+    },
+    {
+      "dynamic": true,
+      "line": 26,
+      "source": "frontends/web/src/api/backup.ts",
+      "subject": "devices/bitbox02/${deviceID}/backups/list"
+    },
+    {
+      "dynamic": true,
+      "line": 203,
+      "source": "frontends/web/src/api/bitbox02.ts",
+      "subject": "devices/bitbox02/${deviceID}/channelHashChanged"
+    },
+    {
+      "dynamic": true,
+      "line": 192,
+      "source": "frontends/web/src/api/bitbox02.ts",
+      "subject": "devices/bitbox02/${deviceID}/status"
+    },
+    {
+      "dynamic": false,
+      "line": 14,
+      "source": "frontends/web/src/api/devicessync.ts",
+      "subject": "devices/registered"
+    },
+    {
+      "dynamic": false,
+      "line": 24,
+      "source": "frontends/web/src/api/keystores.ts",
+      "subject": "keystores"
+    },
+    {
+      "dynamic": false,
+      "line": 12,
+      "source": "frontends/web/src/api/transactions.ts",
+      "subject": "new-txs"
+    },
+    {
+      "dynamic": false,
+      "line": 13,
+      "source": "frontends/web/src/api/online.ts",
+      "subject": "online"
+    },
+    {
+      "dynamic": false,
+      "line": 13,
+      "source": "frontends/web/src/api/mobiledata.ts",
+      "subject": "using-mobile-data"
+    }
+  ]
+}

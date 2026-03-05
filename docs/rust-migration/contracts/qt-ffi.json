@@ -1,0 +1,30 @@
+[
+  {
+    "name": "backendCall",
+    "signature": "int queryID, cchar_t* s"
+  },
+  {
+    "name": "setOnline",
+    "signature": "bool online"
+  },
+  {
+    "name": "handleURI",
+    "signature": "cchar_t* uri"
+  },
+  {
+    "name": "serve",
+    "signature": "cppHeapFree cppHeapFreeFn, pushNotificationsCallback pushNotificationsFn, responseCallback responseFn, notifyUserCallback notifyUserFn, cchar_t* preferredLocale, getSaveFilenameCallback getSaveFilenameFn"
+  },
+  {
+    "name": "systemOpen",
+    "signature": "cchar_t* url"
+  },
+  {
+    "name": "goLog",
+    "signature": "cchar_t* msg"
+  },
+  {
+    "name": "backendShutdown",
+    "signature": ""
+  }
+]

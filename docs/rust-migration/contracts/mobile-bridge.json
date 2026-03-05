@@ -1,0 +1,56 @@
+{
+  "exported_constants": [
+    "AuthResultCancel",
+    "AuthResultErr",
+    "AuthResultMissing",
+    "AuthResultOk"
+  ],
+  "exported_functions": [
+    "AuthResult",
+    "BackendCall",
+    "BluetoothSetState",
+    "HandleURI",
+    "ManualReconnect",
+    "Serve",
+    "SetOnline",
+    "Shutdown",
+    "TriggerAuth",
+    "UsbUpdate",
+    "UsingMobileDataChanged"
+  ],
+  "interfaces": {
+    "GoAPIInterface": [
+      "bridgecommon.NativeCommunication"
+    ],
+    "GoDeviceInfoInterface": [
+      "IsBluetooth() bool",
+      "VendorID() int",
+      "ProductID() int",
+      "UsagePage() int",
+      "Interface() int",
+      "Serial() string",
+      "Product() string",
+      "Identifier() string",
+      "Open() (GoReadWriteCloserInterface, error)"
+    ],
+    "GoEnvironmentInterface": [
+      "NotifyUser(string)",
+      "DeviceInfo() GoDeviceInfoInterface",
+      "SystemOpen(string) error",
+      "UsingMobileData() bool",
+      "NativeLocale() string",
+      "GetSaveFilename(string) string",
+      "SetDarkTheme(bool)",
+      "DetectDarkTheme() bool",
+      "Auth()",
+      "OnAuthSettingChanged(bool)",
+      "BluetoothConnect(string)"
+    ],
+    "GoReadWriteCloserInterface": [
+      "Read(n int) ([]byte, error)",
+      "io.Writer",
+      "io.Closer"
+    ]
+  },
+  "source": "backend/mobileserver/mobileserver.go"
+}

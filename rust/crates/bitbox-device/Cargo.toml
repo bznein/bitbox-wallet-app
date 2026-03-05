@@ -1,0 +1,17 @@
+[package]
+name = "bitbox-device"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+bitbox-api = { path = "../../../../bitbox-api-rs", optional = true, default-features = false }
+
+[features]
+default = []
+with-bitbox-api-rs = ["dep:bitbox-api"]
+with-bitbox-api-rs-usb = ["with-bitbox-api-rs", "bitbox-api/usb"]
+
+[lib]
+path = "src/lib.rs"

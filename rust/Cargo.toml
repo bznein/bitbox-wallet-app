@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/bitbox-contracts",
+  "crates/bitbox-core",
+  "crates/bitbox-device",
+  "crates/bitbox-api",
+  "crates/bitbox-bridge",
+  "crates/bitbox-ffi-qt",
+  "crates/bitbox-mobile",
+  "bin/servewallet-rs",
+]
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+authors = ["BitBoxApp contributors"]
+
+[workspace.lints.rust]
+unsafe_code = "allow"

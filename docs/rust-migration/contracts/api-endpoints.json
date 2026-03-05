@@ -1,0 +1,523 @@
+[
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getAccounts",
+    "line": 210,
+    "method": "GET",
+    "path": "/accounts",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": true,
+    "handler": "handlers.getAccountsBalanceSummary",
+    "line": 211,
+    "method": "GET",
+    "path": "/accounts/balance-summary",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getAOPP",
+    "line": 242,
+    "method": "GET",
+    "path": "/aopp",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getBanners",
+    "line": 198,
+    "method": "GET",
+    "path": "/banners/{key}",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getBitsuranceURL",
+    "line": 241,
+    "method": "GET",
+    "path": "/bitsurance/url",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getBluetoothState",
+    "line": 255,
+    "method": "GET",
+    "path": "/bluetooth/state",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getChartData",
+    "line": 216,
+    "method": "GET",
+    "path": "/chart-data",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getBTCParseExternalAmount",
+    "line": 227,
+    "method": "GET",
+    "path": "/coins/btc/parse-external-amount",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getConvertFromFiat",
+    "line": 221,
+    "method": "GET",
+    "path": "/coins/convert-from-fiat",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getConvertToPlainFiat",
+    "line": 220,
+    "method": "GET",
+    "path": "/coins/convert-to-plain-fiat",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getAppConfig",
+    "line": 191,
+    "method": "GET",
+    "path": "/config",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getDefaultConfig",
+    "line": 192,
+    "method": "GET",
+    "path": "/config/default",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getDetectDarkTheme",
+    "line": 203,
+    "method": "GET",
+    "path": "/detect-dark-theme",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getDevServers",
+    "line": 206,
+    "method": "GET",
+    "path": "/dev-servers",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.eventsHandler",
+    "line": 334,
+    "method": "GET",
+    "path": "/events",
+    "source": "backend/handlers/handlers.go",
+    "transport": "websocket"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getKeystoreShowBackupBanner",
+    "line": 259,
+    "method": "GET",
+    "path": "/keystore/show-backup-banner/{rootFingerprint}",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getKeystoreFeatures",
+    "line": 209,
+    "method": "GET",
+    "path": "/keystore/{rootFingerprint}/features",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getKeystores",
+    "line": 208,
+    "method": "GET",
+    "path": "/keystores",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getMarketBitrefillInfo",
+    "line": 239,
+    "method": "GET",
+    "path": "/market/bitrefill/info/{action}/{code}",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getMarketBtcDirectOTCSupported",
+    "line": 234,
+    "method": "GET",
+    "path": "/market/btcdirect-otc/supported/{code}",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getMarketBtcDirectInfo",
+    "line": 235,
+    "method": "GET",
+    "path": "/market/btcdirect/info/{action}/{code}",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getMarketDeals",
+    "line": 232,
+    "method": "GET",
+    "path": "/market/deals/{action}/{code}",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": true,
+    "handler": "handlers.getMarketMoonpayBuyInfo",
+    "line": 236,
+    "method": "GET",
+    "path": "/market/moonpay/buy-info/{code}",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getMarketPocketURL",
+    "line": 237,
+    "method": "GET",
+    "path": "/market/pocket/api-url/{action}",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getMarketRegionCodes",
+    "line": 231,
+    "method": "GET",
+    "path": "/market/region-codes",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getMarketVendors",
+    "line": 233,
+    "method": "GET",
+    "path": "/market/vendors/{code}",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getNativeLocale",
+    "line": 194,
+    "method": "GET",
+    "path": "/native-locale",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getOnline",
+    "line": 258,
+    "method": "GET",
+    "path": "/online",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getQRCode",
+    "line": 190,
+    "method": "GET",
+    "path": "/qr",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getSupportedCoins",
+    "line": 217,
+    "method": "GET",
+    "path": "/supported-coins",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getTesting",
+    "line": 205,
+    "method": "GET",
+    "path": "/testing",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getUpdate",
+    "line": 197,
+    "method": "GET",
+    "path": "/update",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getUsingMobileData",
+    "line": 199,
+    "method": "GET",
+    "path": "/using-mobile-data",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.getVersion",
+    "line": 204,
+    "method": "GET",
+    "path": "/version",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postAddAccount",
+    "line": 207,
+    "method": "POST",
+    "path": "/account-add",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.lookupEthAccountCode",
+    "line": 251,
+    "method": "POST",
+    "path": "/accounts/eth-account-code",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postAccountsReinitialize",
+    "line": 215,
+    "method": "POST",
+    "path": "/accounts/reinitialize",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postAOPPApprove",
+    "line": 244,
+    "method": "POST",
+    "path": "/aopp/approve",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postAOPPCancel",
+    "line": 243,
+    "method": "POST",
+    "path": "/aopp/cancel",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": true,
+    "handler": "handlers.postAOPPChooseAccount",
+    "line": 245,
+    "method": "POST",
+    "path": "/aopp/choose-account",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postAuthenticate",
+    "line": 200,
+    "method": "POST",
+    "path": "/authenticate",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postBitsuranceLookup",
+    "line": 240,
+    "method": "POST",
+    "path": "/bitsurance/lookup",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postBluetoothConnect",
+    "line": 256,
+    "method": "POST",
+    "path": "/bluetooth/connect",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postCancelConnectKeystore",
+    "line": 247,
+    "method": "POST",
+    "path": "/cancel-connect-keystore",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postCertsDownload",
+    "line": 228,
+    "method": "POST",
+    "path": "/certs/download",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postBtcFormatUnit",
+    "line": 226,
+    "method": "POST",
+    "path": "/coins/btc/set-unit",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": true,
+    "handler": "handlers.postAppConfig",
+    "line": 193,
+    "method": "POST",
+    "path": "/config",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postConnectKeystore",
+    "line": 246,
+    "method": "POST",
+    "path": "/connect-keystore",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postElectrumCheck",
+    "line": 229,
+    "method": "POST",
+    "path": "/electrum/check",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postExportLog",
+    "line": 250,
+    "method": "POST",
+    "path": "/export-log",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postForceAuth",
+    "line": 201,
+    "method": "POST",
+    "path": "/force-auth",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postPocketWidgetVerifyAddress",
+    "line": 238,
+    "method": "POST",
+    "path": "/market/pocket/verify-address",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postExportNotes",
+    "line": 252,
+    "method": "POST",
+    "path": "/notes/export",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postImportNotes",
+    "line": 253,
+    "method": "POST",
+    "path": "/notes/import",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": true,
+    "handler": "handlers.postNotify",
+    "line": 195,
+    "method": "POST",
+    "path": "/notify-user",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postOnAuthSettingChanged",
+    "line": 249,
+    "method": "POST",
+    "path": "/on-auth-setting-changed",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": true,
+    "handler": "handlers.postOpen",
+    "line": 196,
+    "method": "POST",
+    "path": "/open",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postRenameAccount",
+    "line": 214,
+    "method": "POST",
+    "path": "/rename-account",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postSetAccountActive",
+    "line": 212,
+    "method": "POST",
+    "path": "/set-account-active",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": true,
+    "handler": "handlers.postDarkTheme",
+    "line": 202,
+    "method": "POST",
+    "path": "/set-dark-theme",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postSetTokenActive",
+    "line": 213,
+    "method": "POST",
+    "path": "/set-token-active",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postSetWatchonly",
+    "line": 248,
+    "method": "POST",
+    "path": "/set-watchonly",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postSocksProxyCheck",
+    "line": 230,
+    "method": "POST",
+    "path": "/socksproxy/check",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": false,
+    "handler": "handlers.postDeregisterTestKeystore",
+    "line": 219,
+    "method": "POST",
+    "path": "/test/deregister",
+    "source": "backend/handlers/handlers.go"
+  },
+  {
+    "error_wrapped": true,
+    "handler": "handlers.postRegisterTestKeystore",
+    "line": 218,
+    "method": "POST",
+    "path": "/test/register",
+    "source": "backend/handlers/handlers.go"
+  }
+]

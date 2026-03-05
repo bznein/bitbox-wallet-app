@@ -104,3 +104,7 @@ update-bitbox02-api-go:
 	./scripts/update-bitbox02-api-go.sh
 update-btc-checkpoints:
 	go run cmd/playground/update_btc_checkpoints/main.go
+rust-contract-freeze:
+	./scripts/rust_migration/extract_contracts.py
+rust-contract-check:
+	./scripts/rust_migration/extract_contracts.py --check

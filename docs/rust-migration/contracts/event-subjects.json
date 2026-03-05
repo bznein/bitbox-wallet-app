@@ -1,0 +1,92 @@
+[
+  {
+    "kind": "format",
+    "line": 832,
+    "source": "backend/accounts.go",
+    "subject": "account/%s/%s"
+  },
+  {
+    "kind": "format",
+    "line": 125,
+    "source": "backend/coins/btc/coin.go",
+    "subject": "coins/%s/headers/status"
+  },
+  {
+    "kind": "literal",
+    "line": 1069,
+    "source": "backend/accounts.go",
+    "subject": "accounts"
+  },
+  {
+    "kind": "literal",
+    "line": 137,
+    "source": "backend/aopp.go",
+    "subject": "aopp"
+  },
+  {
+    "kind": "literal",
+    "line": 397,
+    "source": "backend/backend.go",
+    "subject": "auth"
+  },
+  {
+    "kind": "literal",
+    "line": 167,
+    "source": "backend/devices/bitbox02/device.go",
+    "subject": "backups/list"
+  },
+  {
+    "kind": "literal",
+    "line": 123,
+    "source": "backend/banners/banners.go",
+    "subject": "banners/"
+  },
+  {
+    "kind": "literal",
+    "line": 47,
+    "source": "backend/banners/banners_test.go",
+    "subject": "banners/bitbox01"
+  },
+  {
+    "kind": "literal",
+    "line": 94,
+    "source": "backend/devices/bluetooth/bluetooth.go",
+    "subject": "bluetooth/state"
+  },
+  {
+    "kind": "literal",
+    "line": 869,
+    "source": "backend/accounts.go",
+    "subject": "connect-keystore"
+  },
+  {
+    "kind": "literal",
+    "line": 845,
+    "source": "backend/backend.go",
+    "subject": "devices/registered"
+  },
+  {
+    "kind": "literal",
+    "line": 733,
+    "source": "backend/backend.go",
+    "subject": "keystores"
+  },
+  {
+    "kind": "literal",
+    "line": 996,
+    "source": "backend/backend.go",
+    "subject": "online"
+  },
+  {
+    "kind": "literal",
+    "line": 79,
+    "source": "backend/devices/bitbox02/device.go",
+    "subject": "status"
+  },
+  {
+    "kind": "literal",
+    "line": 156,
+    "source": "backend/bridgecommon/bridgecommon.go",
+    "subject": "using-mobile-data"
+  }
+]
