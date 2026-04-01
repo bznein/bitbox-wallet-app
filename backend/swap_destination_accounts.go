@@ -10,6 +10,7 @@ import (
 	accountsTypes "github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts/types"
 	coinpkg "github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/coin"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/config"
+	"github.com/BitBoxSwiss/bitbox-wallet-app/util/errp"
 )
 
 // SwapDestinationAccount contains the backend-native data needed to serialize swap destinations.
@@ -73,6 +74,28 @@ func (backend *Backend) SwapDestinationAccounts() []*SwapDestinationAccount {
 	})
 
 	return swapAccounts
+}
+
+// SignSwap prepares the selected destination before the real swap signing flow is implemented.
+func (backend *Backend) SignSwap(buyAccountCode, sellAccountCode accountsTypes.Code, routeID, sellAmount string) error {
+	_ = sellAccountCode
+	_ = routeID
+	_ = sellAmount
+	for _, account := range backend.SwapDestinationAccounts() {
+		if account.AccountConfig.Code != buyAccountCode {
+			continue
+		}
+		if account.ParentAccountCode != nil {
+			return backend.SetTokenActive(*account.ParentAccountCode, string(account.AccountCoin.Code()), true)
+		}
+		if account.AccountConfig.Inactive {
+			return backend.SetAccountActive(account.AccountConfig.Code, true)
+		}
+
+		// TODO implement swap sign logic here.
+		return nil
+	}
+	return errp.Newf("Could not find swap destination account %s", buyAccountCode)
 }
 
 func (backend *Backend) shouldIncludeSwapDestinationAccount(account *config.Account) bool {

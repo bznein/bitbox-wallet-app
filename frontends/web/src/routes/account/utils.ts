@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AccountCode, CoinCode, ScriptType, TAccount, TAccountLike, CoinUnit, TKeystore } from '@/api/account';
+import type { AccountCode, CoinCode, ScriptType, TAccount, TAccountBase, CoinUnit, TKeystore } from '@/api/account';
 
 export const findAccount = <T extends { code: AccountCode }>(
   accounts: T[],
@@ -93,7 +93,7 @@ export type TAccountsByKeystore<T extends { keystore: TKeystore } = TAccount> = 
 };
 
 // Returns the accounts grouped by the keystore fingerprint.
-export const getAccountsByKeystore = <T extends TAccountLike>(accounts: T[]): TAccountsByKeystore<T>[] => {
+export const getAccountsByKeystore = <T extends TAccountBase>(accounts: T[]): TAccountsByKeystore<T>[] => {
   return Object.values(accounts.reduce((acc, account) => {
     const key = account.keystore.rootFingerprint;
     if (!acc[key]) {

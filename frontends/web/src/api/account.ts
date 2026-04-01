@@ -40,27 +40,25 @@ export type TKeystore = {
   connected: boolean;
 };
 
-export type TAccountLike = {
+export type TAccountBase = {
   keystore: TKeystore;
   active: boolean;
   coinCode: CoinCode;
   coinUnit: CoinUnit;
   code: AccountCode;
   name: string;
+  isToken: boolean;
 };
 
-export type TAccount = TAccountLike & {
+export type TAccount = TAccountBase & {
   coinName: string;
-  isToken: boolean;
   activeTokens?: TActiveToken[];
   blockExplorerTxPrefix: string;
   bitsuranceStatus?: TDetailStatus;
   accountNumber?: number;
 };
 
-type TSwapDestinationAccountBase = TAccountLike;
-
-export type TSwapDestinationAccount = TSwapDestinationAccountBase & ({
+export type TSwapDestinationAccount = TAccountBase & ({
   isToken: true;
   coinCode: ERC20CoinCode;
   parentAccountCode: AccountCode;

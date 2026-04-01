@@ -61,3 +61,53 @@ func TestSwapDestinationAccountsSortOrder(t *testing.T) {
 
 	require.Equal(t, expectedCodes, actualCodes)
 }
+
+func TestSignSwapActivatesInactiveAccount(t *testing.T) {
+	b := newBackend(t, testnetDisabled, regtestDisabled)
+	defer b.Close()
+
+	ks := makeBitBox02Multi()
+	ks.RootFingerprintFunc = func() ([]byte, error) {
+		return rootFingerprint1, nil
+	}
+	b.registerKeystore(ks)
+
+	btcAccountCode := accountsTypes.Code("v0-55555555-btc-0")
+	require.NoError(t, b.SetAccountActive(btcAccountCode, false))
+	require.True(t, b.Config().AccountsConfig().Lookup(btcAccountCode).Inactive)
+
+	require.NoError(t, b.SignSwap(btcAccountCode, "", "", ""))
+	require.False(t, b.Config().AccountsConfig().Lookup(btcAccountCode).Inactive)
+}
+
+func TestSignSwapActivatesParentOfTokenDestination(t *testing.T) {
+	b := newBackend(t, testnetDisabled, regtestDisabled)
+	defer b.Close()
+
+	ks := makeBitBox02Multi()
+	ks.RootFingerprintFunc = func() ([]byte, error) {
+		return rootFingerprint1, nil
+	}
+	b.registerKeystore(ks)
+
+	ethAccountCode := accountsTypes.Code("v0-55555555-eth-0")
+	tokenCode := "eth-erc20-bat"
+	tokenAccountCode := Erc20AccountCode(ethAccountCode, tokenCode)
+
+	require.NoError(t, b.SetTokenActive(ethAccountCode, tokenCode, true))
+	require.NoError(t, b.SetAccountActive(ethAccountCode, false))
+	require.True(t, b.Config().AccountsConfig().Lookup(ethAccountCode).Inactive)
+	require.Contains(t, b.Config().AccountsConfig().Lookup(ethAccountCode).ActiveTokens, tokenCode)
+
+	require.NoError(t, b.SignSwap(tokenAccountCode, "", "", ""))
+	require.False(t, b.Config().AccountsConfig().Lookup(ethAccountCode).Inactive)
+	require.Contains(t, b.Config().AccountsConfig().Lookup(ethAccountCode).ActiveTokens, tokenCode)
+}
+
+func TestSignSwapReturnsErrorForUnknownAccount(t *testing.T) {
+	b := newBackend(t, testnetDisabled, regtestDisabled)
+	defer b.Close()
+
+	err := b.SignSwap(accountsTypes.Code("missing-account"), "", "", "")
+	require.Error(t, err)
+}

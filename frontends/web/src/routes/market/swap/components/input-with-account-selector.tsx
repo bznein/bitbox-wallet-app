@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useContext, useEffect, useState, type ChangeEvent } from 'react';
-import type { AccountCode, TAccountLike } from '@/api/account';
+import type { AccountCode, TAccountBase } from '@/api/account';
 import { convertToCurrency } from '@/api/coins';
 import { RatesContext } from '@/contexts/RatesContext';
 import { NumberInput } from '@/components/forms';
@@ -11,7 +11,7 @@ import { AmountUnit } from '@/components/amount/amount-with-unit';
 import { findAccount } from '@/routes/account/utils';
 import style from './input-with-account-selector.module.css';
 
-type Props<T extends TAccountLike> = {
+type Props<T extends TAccountBase> = {
   accountCode: AccountCode | undefined;
   accounts: T[];
   id: string;
@@ -20,7 +20,7 @@ type Props<T extends TAccountLike> = {
   value: string | undefined;
 };
 
-export const InputWithAccountSelector = <T extends TAccountLike, >({
+export const InputWithAccountSelector = <T extends TAccountBase, >({
   accountCode,
   accounts,
   id,

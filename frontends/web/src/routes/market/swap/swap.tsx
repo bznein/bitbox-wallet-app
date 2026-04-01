@@ -3,8 +3,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getBalance, getSwapDestinationAccounts, TBalance, type AccountCode, type TAccount, type TSwapDestinationAccount } from '@/api/account';
-import * as backendAPI from '@/api/backend';
-import { getSwapQuote, type TSwapQuoteRoute } from '@/api/swap';
+import { getSwapQuote, signSwap, type TSwapQuoteRoute } from '@/api/swap';
 import { GuideWrapper, GuidedContent, Main, Header } from '@/components/layout';
 import { View, ViewButtons, ViewContent } from '@/components/view/view';
 import { SubTitle } from '@/components/title';
@@ -195,32 +194,21 @@ export const Swap = ({
   }, [selectedRoute]);
 
   const handleConfirm = async () => {
-    if (buyAccount && !buyAccount.active) {
-      // TODO: move activation as late as possible in the real swap flow, or ask for explicit confirmation first.
-      if (buyAccount.isToken) {
-        const parentEthAccountCode = buyAccount.parentAccountCode;
-        if (!parentEthAccountCode) {
-          alertUser(t('genericError'));
-          return;
-        }
-        const tokenActivation = await backendAPI.setTokenActive(
-          parentEthAccountCode,
-          buyAccount.coinCode,
-          true,
-        );
-        if (!tokenActivation.success) {
-          alertUser(tokenActivation.errorMessage || t('genericError'));
-          return;
-        }
-      } else {
-        const { success, errorMessage } = await backendAPI.setAccountActive(buyAccount.code, true);
-        if (!success) {
-          alertUser(errorMessage || t('genericError'));
-          return;
-        }
-      }
+    if (!buyAccountCode || !sellAccountCode || !selectedRouteId || !sellAmount) {
+      alertUser(t('genericError'));
+      return;
     }
-    // TODO: add api call to confirm a swap on the device
+    const response = await signSwap({
+      buyAccountCode,
+      routeId: selectedRouteId,
+      sellAccountCode,
+      sellAmount,
+    });
+    if (!response.success) {
+      alertUser(response.errorMessage || t('genericError'));
+      return;
+    }
+    // TODO: add the real device signing flow in the backend swap/sign endpoint.
     setIsConfirming(true);
   };
 

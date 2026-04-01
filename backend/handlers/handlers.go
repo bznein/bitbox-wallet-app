@@ -63,6 +63,7 @@ type Backend interface {
 	Testing() bool
 	Accounts() backend.AccountsList
 	SwapDestinationAccounts() []*backend.SwapDestinationAccount
+	SignSwap(buyAccountCode, sellAccountCode accountsTypes.Code, routeID, sellAmount string) error
 	AccountsByKeystore() (backend.KeystoresAccountsListMap, error)
 	AccountsFiatAndCoinBalance(backend.AccountsList, string) (*big.Rat, map[coinpkg.Code]*big.Int, error)
 	Keystore() keystore.Keystore
@@ -237,6 +238,7 @@ func NewHandlers(
 	getAPIRouterNoError(apiRouter)("/market/vendors/{code}", handlers.getMarketVendors).Methods("GET")
 	getAPIRouterNoError(apiRouter)("/market/btcdirect/info/{action}/{code}", handlers.getMarketBtcDirectInfo).Methods("GET")
 	getAPIRouterNoError(apiRouter)("/swap/quote", handlers.postSwapkitQuote).Methods("POST")
+	getAPIRouterNoError(apiRouter)("/swap/sign", handlers.postSwapSign).Methods("POST")
 	getAPIRouter(apiRouter)("/market/moonpay/buy-info/{code}", handlers.getMarketMoonpayBuyInfo).Methods("GET")
 	getAPIRouterNoError(apiRouter)("/market/pocket/api-url/{action}", handlers.getMarketPocketURL).Methods("GET")
 	getAPIRouterNoError(apiRouter)("/market/pocket/verify-address", handlers.postPocketWidgetVerifyAddress).Methods("POST")
@@ -466,16 +468,15 @@ func newAccountJSON(
 	}
 }
 
-func newSwapDestinationAccountJSON(
-	keystore config.Keystore,
-	accountConfig *config.Account,
-	accountCoin coinpkg.Coin,
-	keystoreConnected bool,
-	parentAccountCode *accountsTypes.Code,
-) *swapDestinationAccountJSON {
+func newSwapDestinationAccountJSON(account *backend.SwapDestinationAccount) *swapDestinationAccountJSON {
 	return &swapDestinationAccountJSON{
-		accountBaseJSON:   newAccountBaseJSON(keystore, accountConfig, accountCoin, keystoreConnected),
-		ParentAccountCode: parentAccountCode,
+		accountBaseJSON: newAccountBaseJSON(
+			account.Keystore,
+			account.AccountConfig,
+			account.AccountCoin,
+			account.KeystoreConnected,
+		),
+		ParentAccountCode: account.ParentAccountCode,
 	}
 }
 
@@ -742,13 +743,7 @@ func (handlers *Handlers) getAccounts(*http.Request) interface{} {
 func (handlers *Handlers) getSwapDestinationAccounts(*http.Request) interface{} {
 	swapAccounts := []*swapDestinationAccountJSON{}
 	for _, account := range handlers.backend.SwapDestinationAccounts() {
-		swapAccounts = append(swapAccounts, newSwapDestinationAccountJSON(
-			account.Keystore,
-			account.AccountConfig,
-			account.AccountCoin,
-			account.KeystoreConnected,
-			account.ParentAccountCode,
-		))
+		swapAccounts = append(swapAccounts, newSwapDestinationAccountJSON(account))
 	}
 	return swapAccounts
 }
@@ -1742,6 +1737,46 @@ func (handlers *Handlers) postConnectKeystore(r *http.Request) interface{} {
 
 	_, err := handlers.backend.ConnectKeystore([]byte(request.RootFingerprint))
 	return response{Success: err == nil}
+}
+
+func (handlers *Handlers) postSwapSign(r *http.Request) interface{} {
+	type result struct {
+		Success      bool   `json:"success"`
+		ErrorMessage string `json:"errorMessage,omitempty"`
+	}
+
+	var request struct {
+		BuyAccountCode  accountsTypes.Code `json:"buyAccountCode"`
+		RouteID         string             `json:"routeId"`
+		SellAccountCode accountsTypes.Code `json:"sellAccountCode"`
+		SellAmount      string             `json:"sellAmount"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		return result{Success: false, ErrorMessage: "Request body is required and must be a valid JSON object."}
+	}
+	if request.BuyAccountCode == "" {
+		return result{Success: false, ErrorMessage: "buyAccountCode is required."}
+	}
+	if request.SellAccountCode == "" {
+		return result{Success: false, ErrorMessage: "sellAccountCode is required."}
+	}
+	if request.RouteID == "" {
+		return result{Success: false, ErrorMessage: "routeId is required."}
+	}
+	if request.SellAmount == "" {
+		return result{Success: false, ErrorMessage: "sellAmount is required."}
+	}
+	if err := handlers.backend.SignSwap(
+		request.BuyAccountCode,
+		request.SellAccountCode,
+		request.RouteID,
+		request.SellAmount,
+	); err != nil {
+		return result{Success: false, ErrorMessage: err.Error()}
+	}
+
+	return result{Success: true}
 }
 
 func (handlers *Handlers) postSwapkitQuote(r *http.Request) interface{} {

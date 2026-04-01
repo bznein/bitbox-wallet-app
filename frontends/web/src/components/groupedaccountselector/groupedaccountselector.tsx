@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AccountCode, CoinCode, CoinUnit, TAccountLike, TAmountWithConversions } from '@/api/account';
+import type { AccountCode, CoinCode, CoinUnit, TAccountBase, TAmountWithConversions } from '@/api/account';
 import { Button } from '@/components/forms';
 import { Logo } from '@/components/icon/logo';
 import { USBSuccess, ChevronDownDark } from '@/components/icon';
@@ -85,7 +85,7 @@ const renderGroupHeader = (group: TGroupedOption) => (
   </div>
 );
 
-type TAccountSelector<T extends TAccountLike> = {
+type TAccountSelector<T extends TAccountBase> = {
   title?: string;
   disabled?: boolean;
   selected?: string;
@@ -96,7 +96,7 @@ type TAccountSelector<T extends TAccountLike> = {
   className?: string;
 };
 
-export const GroupedAccountSelector = <T extends TAccountLike, >({
+export const GroupedAccountSelector = <T extends TAccountBase, >({
   title,
   disabled,
   selected,

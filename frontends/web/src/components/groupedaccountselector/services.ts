@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import type { TAccountLike } from '@/api/account';
+import type { TAccountBase } from '@/api/account';
 import { getBalance } from '@/api/account';
 import { TAccountsByKeystore, isAmbiguousName } from '@/routes/account/utils';
 import { TGroupedOption, TOption } from './groupedaccountselector';
 
-export const createGroupedOptions = <T extends TAccountLike>(accountsByKeystore: TAccountsByKeystore<T>[]) => {
+export const createGroupedOptions = <T extends TAccountBase>(accountsByKeystore: TAccountsByKeystore<T>[]) => {
   return accountsByKeystore.map(({ keystore, accounts }) => ({
     label: `${keystore.name} ${isAmbiguousName(keystore.name, accountsByKeystore) ? `(${keystore.rootFingerprint})` : ''}`,
     connected: keystore.connected,
