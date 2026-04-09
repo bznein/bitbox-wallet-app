@@ -66,6 +66,7 @@ type Backend interface {
 	Accounts() backend.AccountsList
 	PrepareSwap(buyAccountCode, sellAccountCode accountsTypes.Code, routeID, sellAmount string) (*backend.SwapPreparation, error)
 	SwapAccounts() (backend.SwapAccounts, error)
+	SwapStatus() backend.SwapStatus
 	AccountsByKeystore() (backend.KeystoresAccountsListMap, error)
 	AccountsFiatAndCoinBalance(backend.AccountsList, string) (*big.Rat, map[coinpkg.Code]*big.Int, error)
 	Keystore() keystore.Keystore
@@ -217,6 +218,7 @@ func NewHandlers(
 	getAPIRouterNoError(apiRouter)("/keystore/{rootFingerprint}/features", handlers.getKeystoreFeatures).Methods("GET")
 	getAPIRouterNoError(apiRouter)("/accounts", handlers.getAccounts).Methods("GET")
 	getAPIRouterNoError(apiRouter)("/swap/accounts", handlers.getSwapAccounts).Methods("GET")
+	getAPIRouterNoError(apiRouter)("/swap/status", handlers.getSwapStatus).Methods("GET")
 	getAPIRouter(apiRouter)("/accounts/balance-summary", handlers.getAccountsBalanceSummary).Methods("GET")
 	getAPIRouterNoError(apiRouter)("/set-account-active", handlers.postSetAccountActive).Methods("POST")
 	getAPIRouterNoError(apiRouter)("/set-token-active", handlers.postSetTokenActive).Methods("POST")
@@ -794,6 +796,10 @@ func (handlers *Handlers) getSwapAccounts(*http.Request) interface{} {
 		result.BuyAccounts[i] = newSwapAccountJSON(account)
 	}
 	return result
+}
+
+func (handlers *Handlers) getSwapStatus(*http.Request) interface{} {
+	return handlers.backend.SwapStatus()
 }
 
 func (handlers *Handlers) lookupEthAccountCode(r *http.Request) interface{} {
