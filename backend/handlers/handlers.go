@@ -1013,7 +1013,7 @@ func (handlers *Handlers) getConvertToPlainFiat(r *http.Request) interface{} {
 		}
 	}
 
-	coinUnitAmount := new(big.Rat).SetFloat64(currentCoin.ToUnit(coinAmount, false))
+	coinUnitAmount := coinpkg.ToUnitRat(coinAmount, currentCoin, false)
 
 	coinUnit := currentCoin.Unit(false)
 	rate := handlers.backend.RatesUpdater().LatestPrice()[coinUnit][currency]
