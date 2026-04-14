@@ -1431,6 +1431,7 @@ func (handlers *Handlers) getMarketVendors(r *http.Request) interface{} {
 	}
 	if market.IsPocketSupported(acct.Coin().Code()) {
 		supported.Vendors = append(supported.Vendors, market.PocketName)
+		supported.Vendors = append(supported.Vendors, market.PocketOTCName)
 	}
 	if market.IsBtcDirectSupported(acct.Coin().Code()) {
 		supported.Vendors = append(supported.Vendors, market.BTCDirectName)
