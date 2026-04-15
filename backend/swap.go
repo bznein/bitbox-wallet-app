@@ -49,8 +49,10 @@ type SwapPreparation struct {
 
 // SwapAccounts contains the sell and buy accounts needed by the swap screen.
 type SwapAccounts struct {
-	SellAccounts []SwapAccount
-	BuyAccounts  []SwapAccount
+	SellAccounts           []SwapAccount
+	BuyAccounts            []SwapAccount
+	DefaultSellAccountCode *accountsTypes.Code
+	DefaultBuyAccountCode  *accountsTypes.Code
 }
 
 // SwapAccounts returns the accounts that can be selected in the swap screen.
@@ -59,9 +61,13 @@ func (backend *Backend) SwapAccounts() (SwapAccounts, error) {
 	if err != nil {
 		return SwapAccounts{}, err
 	}
+	defaultSellAccount, defaultSellAccountCode := backend.swapDefaultSellAccount(sellAccounts)
+	defaultBuyAccountCode := swapDefaultBuyAccount(buyAccounts, defaultSellAccount)
 	return SwapAccounts{
-		SellAccounts: sellAccounts,
-		BuyAccounts:  buyAccounts,
+		SellAccounts:           sellAccounts,
+		BuyAccounts:            buyAccounts,
+		DefaultSellAccountCode: defaultSellAccountCode,
+		DefaultBuyAccountCode:  defaultBuyAccountCode,
 	}, nil
 }
 
@@ -156,6 +162,85 @@ func (backend *Backend) swapAccounts() ([]SwapAccount, []SwapAccount, error) {
 	sortAccounts(buyAccounts)
 
 	return sellAccounts, buyAccounts, nil
+}
+
+// swapDefaultSellAccount prefers ETH with balance first, then any non-BTC account with balance,
+// then BTC with balance, and finally falls back to the first available sell account.
+func (backend *Backend) swapDefaultSellAccount(sellAccounts []SwapAccount) (*SwapAccount, *accountsTypes.Code) {
+	findAccount := func(match func(coinpkg.Code) bool) (*SwapAccount, *accountsTypes.Code) {
+		for _, account := range sellAccounts {
+			if !match(account.AccountCoin.Code()) {
+				continue
+			}
+			if backend.accountHasNonZeroBalance(account.AccountConfig.Code) {
+				return &account, &account.AccountConfig.Code
+			}
+		}
+		return nil, nil
+	}
+	if account, code := findAccount(func(coin coinpkg.Code) bool {
+		return coin == coinpkg.CodeETH
+	}); account != nil {
+		return account, code
+	}
+	if account, code := findAccount(func(coin coinpkg.Code) bool {
+		return coin != coinpkg.CodeBTC
+	}); account != nil {
+		return account, code
+	}
+	if account, code := findAccount(func(coin coinpkg.Code) bool {
+		return coin == coinpkg.CodeBTC
+	}); account != nil {
+		return account, code
+	}
+	if len(sellAccounts) == 0 {
+		return nil, nil
+	}
+	return &sellAccounts[0], &sellAccounts[0].AccountConfig.Code
+}
+
+// swapDefaultBuyAccount prefers BTC as the buy side, except when selling BTC, where it prefers
+// ETH instead. If that preferred coin is unavailable, it falls back to the first account that is
+// different from the default sell account.
+func swapDefaultBuyAccount(
+	buyAccounts []SwapAccount,
+	defaultSellAccount *SwapAccount,
+) *accountsTypes.Code {
+	if defaultSellAccount == nil {
+		return nil
+	}
+	preferredBuyCoinCode := coinpkg.CodeBTC
+	if defaultSellAccount.AccountCoin.Code() == coinpkg.CodeBTC {
+		preferredBuyCoinCode = coinpkg.CodeETH
+	}
+	for _, account := range buyAccounts {
+		if account.AccountCoin.Code() == preferredBuyCoinCode {
+			return &account.AccountConfig.Code
+		}
+	}
+	for _, account := range buyAccounts {
+		if account.AccountConfig.Code == defaultSellAccount.AccountConfig.Code {
+			continue
+		}
+		return &account.AccountConfig.Code
+	}
+	return nil
+}
+
+func (backend *Backend) accountHasNonZeroBalance(accountCode accountsTypes.Code) bool {
+	account := backend.Accounts().lookup(accountCode)
+	if account == nil {
+		return false
+	}
+	balance, err := account.Balance()
+	if err != nil {
+		backend.log.WithField("code", accountCode).WithError(err).Error("could not get account balance")
+		return false
+	}
+	if balance == nil {
+		return false
+	}
+	return balance.Available().BigInt().Sign() > 0
 }
 
 // PrepareSwap prepares a real SwapKit swap and returns a tx input that can be proposed and sent
