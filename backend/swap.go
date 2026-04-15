@@ -167,31 +167,34 @@ func (backend *Backend) swapAccounts() ([]SwapAccount, []SwapAccount, error) {
 // swapDefaultSellAccount prefers ETH with balance first, then any non-BTC account with balance,
 // then BTC with balance, and finally falls back to the first available sell account.
 func (backend *Backend) swapDefaultSellAccount(sellAccounts []SwapAccount) (*SwapAccount, *accountsTypes.Code) {
-	findAccount := func(match func(coinpkg.Code) bool) (*SwapAccount, *accountsTypes.Code) {
-		for _, account := range sellAccounts {
-			if !match(account.AccountCoin.Code()) {
-				continue
+	var firstBTCAccount *SwapAccount
+	var firstNonBTCAccount *SwapAccount
+	for _, account := range sellAccounts {
+		// Skip accounts with no balance as they can't be used to sell.
+		if !backend.accountHasNonZeroBalance(account.AccountConfig.Code) {
+			continue
+		}
+		switch account.AccountCoin.Code() {
+		case coinpkg.CodeETH:
+			// Prefer the first ETH account with balance immediately.
+			return &account, &account.AccountConfig.Code
+		case coinpkg.CodeBTC:
+			if firstBTCAccount == nil {
+				// Keep the first BTC candidate as a final fallback.
+				firstBTCAccount = &account
 			}
-			if backend.accountHasNonZeroBalance(account.AccountConfig.Code) {
-				return &account, &account.AccountConfig.Code
+		default:
+			if firstNonBTCAccount == nil {
+				// Keep the first non-BTC candidate in case no ETH account is available.
+				firstNonBTCAccount = &account
 			}
 		}
-		return nil, nil
 	}
-	if account, code := findAccount(func(coin coinpkg.Code) bool {
-		return coin == coinpkg.CodeETH
-	}); account != nil {
-		return account, code
+	if firstNonBTCAccount != nil {
+		return firstNonBTCAccount, &firstNonBTCAccount.AccountConfig.Code
 	}
-	if account, code := findAccount(func(coin coinpkg.Code) bool {
-		return coin != coinpkg.CodeBTC
-	}); account != nil {
-		return account, code
-	}
-	if account, code := findAccount(func(coin coinpkg.Code) bool {
-		return coin == coinpkg.CodeBTC
-	}); account != nil {
-		return account, code
+	if firstBTCAccount != nil {
+		return firstBTCAccount, &firstBTCAccount.AccountConfig.Code
 	}
 	if len(sellAccounts) == 0 {
 		return nil, nil
