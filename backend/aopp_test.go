@@ -9,10 +9,14 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
+	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts"
+	accountsmocks "github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts/mocks"
 	accountsTypes "github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts/types"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/btc"
 	coinpkg "github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/coin"
+	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/config"
 	keystorePkg "github.com/BitBoxSwiss/bitbox-wallet-app/backend/keystore"
 	keystoremock "github.com/BitBoxSwiss/bitbox-wallet-app/backend/keystore/mocks"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/keystore/software"
@@ -343,6 +347,69 @@ func TestAOPPSuccess(t *testing.T) {
 			require.Equal(t, accountFingerprint, rootFingerprint2)
 		}
 	})
+}
+
+func TestAOPPCancelWhileSyncing(t *testing.T) {
+	b := newBackend(t, testnetDisabled, regtestDisabled)
+	defer b.Close()
+
+	rootKey := test.TstMustXKey("xprv9s21ZrQH143K3gie3VFLgx8JcmqZNsBcBc6vAdJrsf4bPRhx69U8qZe3EYAyvRWyQdEfz7ZpyYtL8jW2d2Lfkfh6g2zivq8JdZPQqxoxLwB")
+	accountCode := accountsTypes.Code("v0-55555555-btc-99")
+	mockAccount := &accountsmocks.InterfaceMock{
+		ObserveFunc: func(func(observable.Event)) func() {
+			return func() {}
+		},
+		ConfigFunc: func() *accounts.AccountConfig {
+			return &accounts.AccountConfig{
+				Config: &config.Account{
+					Code: accountCode,
+				},
+			}
+		},
+		InitializeFunc: func() error {
+			return nil
+		},
+		SyncedFunc: func() bool {
+			return false
+		},
+		CloseFunc: func() {},
+	}
+
+	unlock := b.accountsAndKeystoreLock.Lock()
+	b.aoppStartRequest()
+	b.aopp = AOPP{
+		State:    aoppStateChoosingAccount,
+		Accounts: []account{{Name: "Bitcoin", Code: accountCode}},
+		Callback: "http://localhost/aopp/",
+		Message:  dummyMsg,
+		coinCode: coinpkg.CodeBTC,
+		format:   "any",
+	}
+	b.keystore = makeKeystore(t, scriptTypeRef(signing.ScriptTypeP2WPKH), software.NewKeystore(rootKey))
+	b.accounts = append(b.accounts, mockAccount)
+	unlock()
+
+	done := make(chan struct{})
+	go func() {
+		b.AOPPChooseAccount(accountCode)
+		close(done)
+	}()
+
+	require.Eventually(t, func() bool {
+		return b.AOPP().State == aoppStateSyncing
+	}, time.Second, 10*time.Millisecond)
+
+	b.AOPPCancel()
+
+	require.Equal(t, AOPP{State: aoppStateInactive}, b.AOPP())
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, time.Second, 10*time.Millisecond)
 }
 
 func TestAOPPFailures(t *testing.T) {

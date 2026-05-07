@@ -227,7 +227,9 @@ type Backend struct {
 
 	connectKeystore connectKeystore
 
-	aopp AOPP
+	aopp       AOPP
+	aoppID     uint64
+	aoppCancel chan struct{}
 
 	// makeBtcAccount creates a BTC account. In production this is `btc.NewAccount`, but can be
 	// overridden in unit tests for mocking.
@@ -736,11 +738,12 @@ func (backend *Backend) Keystore() keystore.Keystore {
 // registerKeystore registers the given keystore at this backend.
 // if another keystore is already registered, it will be replaced.
 func (backend *Backend) registerKeystore(ks keystore.Keystore) {
-	defer backend.accountsAndKeystoreLock.Lock()()
+	unlock := backend.accountsAndKeystoreLock.Lock()
 	// Only for logging, if there is an error we continue anyway.
 	fingerprint, err := ks.RootFingerprint()
 	if err != nil {
 		backend.log.WithError(err).Error("could not retrieve keystore fingerprint")
+		unlock()
 		return
 	}
 	log := backend.log.WithField("rootFingerprint", hex.EncodeToString(fingerprint))
@@ -787,9 +790,15 @@ func (backend *Backend) registerKeystore(ks keystore.Keystore) {
 
 	backend.initAccounts(false)
 
-	backend.aoppKeystoreRegistered()
+	accountCode, chooseAccount := backend.aoppKeystoreRegistered()
 
 	backend.connectKeystore.onConnect(backend.keystore)
+
+	unlock()
+
+	if chooseAccount {
+		backend.AOPPChooseAccount(accountCode)
+	}
 
 	go backend.maybeAddHiddenUnusedAccounts()
 }

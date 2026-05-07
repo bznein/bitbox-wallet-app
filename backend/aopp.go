@@ -128,6 +128,15 @@ type AOPP struct {
 	XpubRequired bool `json:"xpubRequired"`
 }
 
+type aoppRequest struct {
+	ID           uint64
+	Cancel       <-chan struct{}
+	Callback     string
+	Message      string
+	format       string
+	XpubRequired bool
+}
+
 // AOPP returns the current AOPP state.
 func (backend *Backend) AOPP() AOPP {
 	defer backend.accountsAndKeystoreLock.RLock()()
@@ -144,11 +153,38 @@ func (backend *Backend) notifyAOPP() {
 	})
 }
 
+// aoppCloseCancel cancels the active AOPP worker, if any. `accountsAndKeystoreLock` must be held
+// when calling this function.
+func (backend *Backend) aoppCloseCancel() {
+	if backend.aoppCancel != nil {
+		close(backend.aoppCancel)
+		backend.aoppCancel = nil
+	}
+}
+
+// aoppStartRequest invalidates previous AOPP workers and starts a new request generation.
+// `accountsAndKeystoreLock` must be held when calling this function.
+func (backend *Backend) aoppStartRequest() {
+	backend.aoppCloseCancel()
+	backend.aoppID++
+	backend.aoppCancel = make(chan struct{})
+}
+
 // AOPPCancel resets the aopp state.
 func (backend *Backend) AOPPCancel() {
 	defer backend.accountsAndKeystoreLock.Lock()()
+	backend.aoppCloseCancel()
+	backend.aoppID++
 	backend.aopp = AOPP{State: aoppStateInactive}
 	backend.notifyAOPP()
+}
+
+func (backend *Backend) aoppSetErrorIfCurrent(requestID uint64, err errp.ErrorCode) {
+	defer backend.accountsAndKeystoreLock.Lock()()
+	if backend.aoppID != requestID {
+		return
+	}
+	backend.aoppSetError(err)
 }
 
 // aoppSetError pushes an error to the frontend to display. `accountsAndKeystoreLock` must be held
@@ -163,13 +199,13 @@ func (backend *Backend) aoppSetError(err errp.ErrorCode) {
 // accounts to choose from. It is called when a keystore is registered, or right away in
 // `handleAOPP()` if a keystore is already registered. `accountsAndKeystoreLock` must be held when
 // calling this function.
-func (backend *Backend) aoppKeystoreRegistered() {
+func (backend *Backend) aoppKeystoreRegistered() (accountsTypes.Code, bool) {
 	if backend.aopp.State != aoppStateAwaitingKeystore {
-		return
+		return "", false
 	}
 	if !backend.keystore.CanSignMessage(backend.aopp.coinCode) {
 		backend.aoppSetError(errAOPPUnsupportedKeystore)
-		return
+		return "", false
 	}
 	var accounts []account
 	var filteredDueToScriptType bool
@@ -178,7 +214,7 @@ func (backend *Backend) aoppKeystoreRegistered() {
 		if err != nil {
 			backend.log.WithError(err).Error("Account rootfingerprint not available")
 			backend.aoppSetError(errAOPPUnknown)
-			return
+			return "", false
 		}
 
 		if err := compareRootFingerprint(backend.keystore, accountFingerprint); err != nil {
@@ -210,7 +246,7 @@ func (backend *Backend) aoppKeystoreRegistered() {
 		} else {
 			backend.aoppSetError(errAOPPNoAccounts)
 		}
-		return
+		return "", false
 	}
 
 	backend.aopp.Accounts = accounts
@@ -219,17 +255,18 @@ func (backend *Backend) aoppKeystoreRegistered() {
 	// Automatically use the account if there is only one, skipping the step where the user has to
 	// select it manually.
 	if len(accounts) == 1 {
-		backend.aoppChooseAccount(accounts[0].Code)
-		return
+		return accounts[0].Code, true
 	}
 
 	backend.notifyAOPP()
+	return "", false
 }
 
 // handleAOPP handles an AOPP (Address Ownership Proof Protocol) request. See https://aopp.group/.
 func (backend *Backend) handleAOPP(uri url.URL) {
 	defer backend.accountsAndKeystoreLock.Lock()()
 
+	backend.aoppStartRequest()
 	backend.aopp = AOPP{State: aoppStateInactive}
 
 	log := backend.log.WithField("aopp-uri", uri.String())
@@ -286,23 +323,40 @@ func (backend *Backend) handleAOPP(uri url.URL) {
 // `aoppStateUserApproval` to either `aoppStateAwaitingKeystore` or `aoppStateChoosingAccount`
 // depending on if there is a keystore.
 func (backend *Backend) AOPPApprove() {
-	defer backend.accountsAndKeystoreLock.Lock()()
+	unlock := backend.accountsAndKeystoreLock.Lock()
 	if backend.aopp.State != aoppStateUserApproval {
+		unlock()
 		return
 	}
 	backend.aopp.State = aoppStateAwaitingKeystore
 	if backend.keystore == nil {
 		backend.notifyAOPP()
+		unlock()
 		return
 	}
-	backend.aoppKeystoreRegistered()
+	accountCode, chooseAccount := backend.aoppKeystoreRegistered()
+	unlock()
+	if chooseAccount {
+		backend.AOPPChooseAccount(accountCode)
+	}
 }
 
 // aoppChooseAccount is called when an AOPP request is being processed and an account should be
-// selected. `accountsAndKeystoreLock` must be held when calling this function.
+// selected.
 func (backend *Backend) aoppChooseAccount(code accountsTypes.Code) {
+	unlock := backend.accountsAndKeystoreLock.Lock()
 	if backend.aopp.State != aoppStateChoosingAccount {
+		unlock()
 		return
+	}
+
+	request := aoppRequest{
+		ID:           backend.aoppID,
+		Cancel:       backend.aoppCancel,
+		Callback:     backend.aopp.Callback,
+		Message:      backend.aopp.Message,
+		format:       backend.aopp.format,
+		XpubRequired: backend.aopp.XpubRequired,
 	}
 
 	backend.aopp.AccountCode = code
@@ -320,14 +374,24 @@ func (backend *Backend) aoppChooseAccount(code accountsTypes.Code) {
 	if account == nil {
 		log.Error("aopp: could not find account")
 		backend.aoppSetError(errAOPPUnknown)
+		unlock()
 		return
 	}
+	ks := backend.keystore
+	if ks == nil {
+		backend.aopp.State = aoppStateAwaitingKeystore
+		backend.notifyAOPP()
+		unlock()
+		return
+	}
+	unlock()
+
 	if err := account.Initialize(); err != nil {
 		log.
 			WithError(err).
 			WithField("code", account.Config().Config.Code).
 			Error("could not initialize account")
-		backend.aoppSetError(errAOPPUnknown)
+		backend.aoppSetErrorIfCurrent(request.ID, errAOPPUnknown)
 		return
 	}
 
@@ -343,18 +407,28 @@ func (backend *Backend) aoppChooseAccount(code accountsTypes.Code) {
 		}
 	})
 	defer unobserve()
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 loop:
 	for {
 		select {
 		case <-syncedCh:
 			break loop
+		case <-request.Cancel:
+			return
 
-		case <-time.After(time.Second):
+		case <-ticker.C:
 			// Fallback in case the SyncDone event is never received.
 			if account.Synced() {
 				break loop
 			}
 		}
+	}
+
+	select {
+	case <-request.Cancel:
+		return
+	default:
 	}
 
 	unused, err := account.GetUnusedReceiveAddresses()
@@ -363,7 +437,7 @@ loop:
 			WithError(err).
 			WithField("code", account.Config().Config.Code).
 			Error("get unused receive addresses")
-		backend.aoppSetError(errAOPPUnknown)
+		backend.aoppSetErrorIfCurrent(request.ID, errAOPPUnknown)
 		return
 	}
 
@@ -371,51 +445,58 @@ loop:
 	addressList := &unused[0]
 	addr := addressList.Addresses[0]
 	if account.Coin().Code() == coinpkg.CodeBTC {
-		if backend.aopp.format == "any" {
+		if request.format == "any" {
 			signingConfigIdx = account.Config().Config.SigningConfigurations.FindScriptType(*addressList.ScriptType)
 			if signingConfigIdx == -1 {
 				log.Errorf("Unknown script type %s in receive addresses", *addressList.ScriptType)
-				backend.aoppSetError(errAOPPUnknown)
+				backend.aoppSetErrorIfCurrent(request.ID, errAOPPUnknown)
 				return
 			}
 		} else {
-			expectedScriptType, ok := aoppBTCScriptTypeMap[backend.aopp.format]
+			expectedScriptType, ok := aoppBTCScriptTypeMap[request.format]
 			if !ok {
-				log.Errorf("Unknown aopp format param %s", backend.aopp.format)
-				backend.aoppSetError(errAOPPUnknown)
+				log.Errorf("Unknown aopp format param %s", request.format)
+				backend.aoppSetErrorIfCurrent(request.ID, errAOPPUnknown)
 				return
 			}
 			signingConfigIdx = account.Config().Config.SigningConfigurations.FindScriptType(expectedScriptType)
 			if signingConfigIdx == -1 {
-				log.Errorf("Unknown aopp format param %s", backend.aopp.format)
-				backend.aoppSetError(errAOPPUnknown)
+				log.Errorf("Unknown aopp format param %s", request.format)
+				backend.aoppSetErrorIfCurrent(request.ID, errAOPPUnknown)
 				return
 			}
 			addressList = accounts.FindAddressListByScriptType(unused, expectedScriptType)
 			if addressList == nil || len(addressList.Addresses) == 0 {
 				log.WithField("code", account.Config().Config.Code).Errorf("AOPP script type not found: %s", expectedScriptType)
-				backend.aoppSetError(errAOPPUnsupportedFormat)
+				backend.aoppSetErrorIfCurrent(request.ID, errAOPPUnsupportedFormat)
 				return
 			}
 			addr = addressList.Addresses[0]
 		}
 	}
 
+	unlock = backend.accountsAndKeystoreLock.Lock()
+	if backend.aoppID != request.ID || backend.aopp.State != aoppStateSyncing || backend.aopp.AccountCode != code {
+		unlock()
+		return
+	}
 	backend.aopp.Address = addr.EncodeForHumans()
 	backend.aopp.DisplayAddress = backendutil.FormatAddress(account.Coin().Code(), backend.aopp.Address)
 	backend.aopp.AddressID = addr.ID()
 	backend.aopp.State = aoppStateSigning
 	backend.notifyAOPP()
+	unlock()
+
 	var signature []byte
 	var xpub string
-	if backend.aopp.XpubRequired {
+	if request.XpubRequired {
 		xpub = account.Config().Config.SigningConfigurations[signingConfigIdx].ExtendedPublicKey().String()
 	}
 	var sig []byte
 	switch account.Coin().Code() {
 	case coinpkg.CodeBTC, coinpkg.CodeRBTC:
-		sig, err = backend.keystore.SignBTCMessage(
-			[]byte(backend.aopp.Message),
+		sig, err = ks.SignBTCMessage(
+			[]byte(request.Message),
 			addr.AbsoluteKeypath(),
 			account.Config().Config.SigningConfigurations[signingConfigIdx].ScriptType(),
 			account.Coin().Code(),
@@ -424,28 +505,33 @@ loop:
 		ethCoin, ok := account.Coin().(*ethcoin.Coin)
 		if !ok {
 			log.Error("coin type mismatch for eth aopp signing")
-			backend.aoppSetError(errAOPPUnknown)
+			backend.aoppSetErrorIfCurrent(request.ID, errAOPPUnknown)
 			return
 		}
-		sig, err = backend.keystore.SignETHMessage(
+		sig, err = ks.SignETHMessage(
 			ethCoin.ChainID(),
-			[]byte(backend.aopp.Message),
+			[]byte(request.Message),
 			addr.AbsoluteKeypath(),
 		)
 	default:
 		log.Errorf("unsupported coin: %s", account.Coin().Code())
-		backend.aoppSetError(errAOPPUnknown)
+		backend.aoppSetErrorIfCurrent(request.ID, errAOPPUnknown)
 		return
 	}
 
 	if err != nil {
+		select {
+		case <-request.Cancel:
+			return
+		default:
+		}
 		if errp.Cause(err) == keystore.ErrSigningAborted {
 			log.WithError(err).Error("user aborted msg signing")
-			backend.aoppSetError(errAOPPSigningAborted)
+			backend.aoppSetErrorIfCurrent(request.ID, errAOPPSigningAborted)
 			return
 		}
 		log.WithError(err).Error("signing error")
-		backend.aoppSetError(errAOPPUnknown)
+		backend.aoppSetErrorIfCurrent(request.ID, errAOPPUnknown)
 		return
 	}
 	signature = sig
@@ -463,29 +549,39 @@ loop:
 	})
 	if err != nil {
 		log.WithError(err).Error("JSON error")
-		backend.aoppSetError(errAOPPUnknown)
+		backend.aoppSetErrorIfCurrent(request.ID, errAOPPUnknown)
 		return
 	}
-	resp, err := backend.httpClient.Post(backend.aopp.Callback, "application/json", bytes.NewBuffer(jsonBody))
+	resp, err := backend.httpClient.Post(request.Callback, "application/json", bytes.NewBuffer(jsonBody))
 	if err != nil {
+		select {
+		case <-request.Cancel:
+			return
+		default:
+		}
 		log.WithError(err).Error("Error calling callback")
-		backend.aoppSetError(errAOPPCallback)
+		backend.aoppSetErrorIfCurrent(request.ID, errAOPPCallback)
 		return
 	}
 	defer resp.Body.Close() //nolint:errcheck
 	if resp.StatusCode != http.StatusNoContent {
 		log.Errorf("AOPP callback response code is %d, expected %d", resp.StatusCode, 204)
-		backend.aoppSetError(errAOPPCallback)
+		backend.aoppSetErrorIfCurrent(request.ID, errAOPPCallback)
 		return
 	}
 
+	unlock = backend.accountsAndKeystoreLock.Lock()
+	if backend.aoppID != request.ID || backend.aopp.State != aoppStateSigning || backend.aopp.AccountCode != code {
+		unlock()
+		return
+	}
 	backend.aopp.State = aoppStateSuccess
 	backend.notifyAOPP()
+	unlock()
 }
 
 // AOPPChooseAccount is called when an AOPP request is being processed and the user has chosen an
 // account.
 func (backend *Backend) AOPPChooseAccount(code accountsTypes.Code) {
-	defer backend.accountsAndKeystoreLock.Lock()()
 	backend.aoppChooseAccount(code)
 }
