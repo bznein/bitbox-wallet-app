@@ -98,6 +98,11 @@ func setOnline(isReachable bool) {
 	bridgecommon.SetOnline(isReachable)
 }
 
+//go:noinline
+func bitboxappDebugSymbolProbeCrash() {
+	*(*byte)(unsafe.Pointer(uintptr(0xdeadbeef))) = 0
+}
+
 func deviceInfos() []usb.DeviceInfo {
 	testDeviceInfo := simulator.TestDeviceInfo()
 	if testDeviceInfo != nil {
@@ -115,6 +120,10 @@ func serve(
 	preferredLocale *C.cchar_t,
 	getSaveFilenameFn C.getSaveFilenameCallback,
 ) {
+	if os.Getenv("BITBOXAPP_TEST_CRASH") == "1" {
+		bitboxappDebugSymbolProbeCrash()
+	}
+
 	log := logging.Get().WithGroup("server")
 	log.WithField("args", os.Args).Info("Started Qt application")
 	testnet := flag.Bool("testnet", false, "activate testnets")
