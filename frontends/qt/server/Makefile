@@ -7,6 +7,8 @@ linux-clean:
 
 macosx:
 	$(MAKE) -f Makefile.macosx darwin
+macosx-debugsymbols:
+	$(MAKE) -f Makefile.macosx darwin-debugsymbols
 macosx-clean:
 	-$(MAKE) -f Makefile.macosx clean
 

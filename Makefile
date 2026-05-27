@@ -62,6 +62,10 @@ qt-osx: # run on OSX.
 	$(MAKE) buildweb
 	cd frontends/qt && $(MAKE) osx
 	$(MAKE) osx-sec-check
+qt-osx-debugsymbols: # run on OSX.
+	$(MAKE) buildweb
+	cd frontends/qt && $(MAKE) osx-debugsymbols
+	$(MAKE) osx-sec-check
 qt-windows:
 	$(MAKE) buildweb
 	cd frontends/qt && $(MAKE) windows

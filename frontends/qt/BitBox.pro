@@ -71,6 +71,9 @@ unix:macx {
     # Those frameworks are needed for Go's http/net packages.
     # Waiting for https://github.com/golang/go/issues/11258 to be able to automatically capture link flags.
     LIBS += -framework CoreFoundation -framework Security
-    QMAKE_LFLAGS += "-pie -s -w"
+    QMAKE_LFLAGS += -pie
+    !equals(BITBOX_DEBUG_SYMBOLS, 1) {
+        QMAKE_LFLAGS += -s -w
+    }
     QMAKE_MACOSX_DEPLOYMENT_TARGET = $$[MACOS_MIN_VERSION]
 }

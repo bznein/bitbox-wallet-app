@@ -11,6 +11,9 @@ include ../../version.mk.inc
 # but that is yet in the default exclusion lib of linuxdeployqt.
 # See also: https://github.com/probonopd/linuxdeployqt/issues/631 - we can remove the libwayland-client.so.0 exclusion once this is merged and we updated our linuxdeployqt binary.
 EXCLUDE_LIBS:=libwayland-client.so.0
+OSX_SERVER_TARGET ?= macosx
+OSX_QMAKE_ARGS ?=
+OSX_MACDEPLOYQT_ARGS ?=
 
 base:
 	mkdir build
@@ -54,11 +57,11 @@ linux:
 	mv build/linux-tmp/BitBoxApp*-x86_64.AppImage build/linux/
 osx:
 	$(MAKE) clean
-	cd server && $(MAKE) macosx
+	cd server && $(MAKE) $(OSX_SERVER_TARGET)
 	$(MAKE) base
 	qmake -set MACOS_MIN_VERSION $(MACOS_MIN_VERSION)
 	# See https://stackoverflow.com/questions/77136519/qmake-failing-with-sdk-14-ventura-13-5-2
-	qmake -early QMAKE_DEFAULT_LIBDIRS=$(shell xcrun -show-sdk-path)/usr/lib -o build/Makefile
+	qmake -early QMAKE_DEFAULT_LIBDIRS=$(shell xcrun -show-sdk-path)/usr/lib -o build/Makefile $(OSX_QMAKE_ARGS)
 	cd build && $(MAKE)
 	mkdir build/osx
 	mv build/BitBox.app build/osx/
@@ -67,10 +70,17 @@ osx:
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(APP_VERSION)" build/osx/BitBox.app/Contents/Info.plist
 	mkdir -p build/osx/BitBox.app/Contents/Resources
 	cp resources/MacOS/icon.icns build/osx/BitBox.app/Contents/Resources/
-	cd build/osx/ && macdeployqt BitBox.app
+	cd build/osx/ && macdeployqt BitBox.app $(OSX_MACDEPLOYQT_ARGS)
 	cp server/libserver.so build/osx/BitBox.app/Contents/Frameworks
 	cp build/assets.rcc build/osx/BitBox.app/Contents/MacOS/
 	install_name_tool -change libserver.so @executable_path/../Frameworks/libserver.so build/osx/BitBox.app/Contents/MacOS/BitBox
 	cp -r resources/MacOS/Testnet.app build/osx/Testnet.app
+osx-debugsymbols:
+	$(MAKE) osx \
+		OSX_SERVER_TARGET=macosx-debugsymbols \
+		OSX_QMAKE_ARGS='BITBOX_DEBUG_SYMBOLS=1 CONFIG+=force_debug_info QMAKE_CXXFLAGS+=-g' \
+		OSX_MACDEPLOYQT_ARGS=-no-strip
+	dsymutil build/osx/BitBox.app/Contents/MacOS/BitBox -o build/osx/BitBox.app.dSYM
+	dsymutil build/osx/BitBox.app/Contents/Frameworks/libserver.so -o build/osx/libserver.so.dSYM
 windows:
 	bash make_windows.sh
