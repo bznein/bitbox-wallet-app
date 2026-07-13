@@ -10,6 +10,7 @@ import { Status } from '@/components/status/status';
 import { View, ViewButtons, ViewContent } from '@/components/view/view';
 import { Bolt11PaymentDetails, PaymentAmountDetails, PaymentFeeDetails } from './payment-input-details';
 import { type TPaymentReviewDetails, usePaymentReview } from '../hooks/use-payment-review';
+import { CustomPaymentAmount, PaymentBalance } from './custom-payment-amount';
 import { SendingSpinner } from './sending-spinner';
 
 type TProps = {
@@ -32,7 +33,6 @@ export const Bolt11ReviewStep = ({
   }), [invoice]);
   const {
     canSend,
-    customAmount,
     fees,
     isSending,
     preparedPayment,
@@ -59,18 +59,9 @@ export const Bolt11ReviewStep = ({
             </Status>
             {needsCustomAmount ? (
               <>
-                <Input
-                  type="number"
-                  min={0}
-                  label={t('lightning.receive.amountSats.label')}
-                  placeholder={t('lightning.receive.amountSats.placeholder')}
-                  id="amountSatsInput"
-                  onInput={(event) => {
-                    const amount = event.currentTarget.valueAsNumber;
-                    setCustomAmount(Number.isNaN(amount) ? undefined : amount);
-                  }}
-                  value={customAmount ? `${customAmount}` : ''}
-                  autoFocus
+                <CustomPaymentAmount
+                  key={invoice.invoice}
+                  onAmountChange={setCustomAmount}
                 />
                 <Input
                   type="text"
@@ -92,9 +83,12 @@ export const Bolt11ReviewStep = ({
                 )}
               </>
             ) : (
-              fees
-                ? <Bolt11PaymentDetails description={invoice.description} fees={fees} />
-                : preparedPayment?.status === 'preparing' && <Spinner text={t('loading')} />
+              <>
+                <PaymentBalance />
+                {fees
+                  ? <Bolt11PaymentDetails description={invoice.description} fees={fees} />
+                  : preparedPayment?.status === 'preparing' && <Spinner text={t('loading')} />}
+              </>
             )}
           </Column>
         </Grid>
