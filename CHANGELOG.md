@@ -12,6 +12,7 @@
 - Bitcoin: display zero amounts without decimal places
 - Add option to navigate to "Used addresses" in sign-message workflow
 - Floating mobile bottom navigation bar
+- Allow users to upgrade firmware during setup
 
 ## v4.51.3
 - Bundle BitBox02 and BitBox02 Nova firmware version v9.26.4

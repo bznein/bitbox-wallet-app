@@ -874,6 +874,7 @@
       "title": "Firmware",
       "upToDate": "Your device is up to date",
       "upgradeAvailable": "New upgrade available",
+      "upgradeAvailableDescription": "A firmware upgrade is available. Upgrade now for latest security improvements and features.",
       "version": {
         "label": "Version"
       }
@@ -1046,6 +1047,7 @@
     "sell_crypto": "Sell crypto",
     "send": "Send",
     "sent": "Sent",
+    "skip": "Skip",
     "spend_bitcoin": "Spend bitcoin",
     "spend_crypto": "Spend crypto",
     "swap": "Swap",
