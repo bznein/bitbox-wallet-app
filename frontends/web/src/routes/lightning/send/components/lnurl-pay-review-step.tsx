@@ -34,21 +34,25 @@ export const LNURLPayReviewStep = ({
     canSend,
     fees,
     isSending,
+    isStartingNew,
     preparedPayment,
     sendError,
     sendPayment,
     setCustomAmount,
+    startNewPayment,
   } = usePaymentReview({
     paymentDetails,
     backToPaymentInput,
     onSuccess,
   });
 
-  if (isSending) {
+  if (isSending || isStartingNew) {
     return <SendingSpinner />;
   }
 
   const prepareError = amountError || (preparedPayment?.status === 'error' ? preparedPayment.error : undefined);
+  const paymentStatus = preparedPayment?.status;
+  const startsNewPayment = paymentStatus === 'completed' || paymentStatus === 'failed';
 
   return (
     <View fitContent minHeight="100%">
@@ -57,6 +61,18 @@ export const LNURLPayReviewStep = ({
           <Column>
             <Status dismissibleKey="" type="warning" hidden={!sendError}>
               {sendError}
+            </Status>
+            <Status dismissibleKey="" type="warning" hidden={paymentStatus !== 'unknown'}>
+              {t('lightning.send.lnurlPay.paymentUnknown')}
+            </Status>
+            <Status dismissibleKey="" type="info" hidden={paymentStatus !== 'pending'}>
+              {t('lightning.send.lnurlPay.paymentPending')}
+            </Status>
+            <Status dismissibleKey="" type="info" hidden={paymentStatus !== 'completed'}>
+              {t('lightning.send.lnurlPay.alreadyPaid')}
+            </Status>
+            <Status dismissibleKey="" type="error" hidden={paymentStatus !== 'failed'}>
+              {t('lightning.send.lnurlPay.paymentFailed')}
             </Status>
             <CustomPaymentAmount
               key={lnurlPay.input}
@@ -77,9 +93,17 @@ export const LNURLPayReviewStep = ({
       <ViewButtons>
         <Button
           primary
-          onClick={sendPayment}
-          disabled={!canSend}>
-          {t('generic.send')}
+          onClick={startsNewPayment ? startNewPayment : sendPayment}
+          disabled={paymentStatus === 'pending' || (!startsNewPayment && !canSend)}>
+          {paymentStatus === 'completed'
+            ? t('lightning.send.lnurlPay.sendAnother')
+            : paymentStatus === 'failed'
+              ? t('lightning.send.lnurlPay.tryAgain')
+              : paymentStatus === 'pending'
+                ? t('lightning.send.lnurlPay.waiting')
+                : paymentStatus === 'unknown'
+                  ? t('generic.retry')
+                  : t('generic.send')}
         </Button>
         <Button secondary onClick={() => backToPaymentInput()}>
           {t('button.back')}

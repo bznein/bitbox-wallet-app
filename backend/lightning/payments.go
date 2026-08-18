@@ -3,6 +3,7 @@
 package lightning
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts"
 	accountsTypes "github.com/BitBoxSwiss/bitbox-wallet-app/backend/accounts/types"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/coins/coin"
+	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/config"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/backend/signing"
 	"github.com/BitBoxSwiss/bitbox-wallet-app/util/errp"
 	"github.com/breez/breez-sdk-spark-go/breez_sdk_spark"
@@ -23,12 +25,14 @@ import (
 )
 
 const (
-	errPaymentApprovalRequired      errp.ErrorCode = "paymentApprovalRequired"
-	errLightningAmountBelowMinimum  errp.ErrorCode = "lightningAmountBelowMinimum"
-	errLightningInvalidAmount       errp.ErrorCode = "lightningInvalidAmount"
-	errLightningInvalidPaymentInput errp.ErrorCode = "lightningInvalidPaymentInput"
-	errLightningInsufficientFunds   errp.ErrorCode = "lightningInsufficientFunds"
-	errLightningInvoiceAlreadyUsed  errp.ErrorCode = "lightningInvoiceAlreadyUsed"
+	errPaymentApprovalRequired        errp.ErrorCode = "paymentApprovalRequired"
+	errLightningAmountBelowMinimum    errp.ErrorCode = "lightningAmountBelowMinimum"
+	errLightningInvalidAmount         errp.ErrorCode = "lightningInvalidAmount"
+	errLightningInvalidPaymentInput   errp.ErrorCode = "lightningInvalidPaymentInput"
+	errLightningInsufficientFunds     errp.ErrorCode = "lightningInsufficientFunds"
+	errLightningInvoiceAlreadyUsed    errp.ErrorCode = "lightningInvoiceAlreadyUsed"
+	errLightningPaymentAttemptChanged errp.ErrorCode = "lightningPaymentAttemptChanged"
+	errLightningPaymentNotFinal       errp.ErrorCode = "lightningPaymentNotFinal"
 )
 
 type lightningAmountBelowMinimumError struct {
@@ -128,6 +132,32 @@ type paymentFee struct {
 	IdempotencyKey string `json:"idempotencyKey,omitempty"`
 }
 
+type startNewPaymentRequest struct {
+	Type           string  `json:"type"`
+	PaymentInput   string  `json:"paymentInput"`
+	AmountSat      *uint64 `json:"amountSat"`
+	IdempotencyKey string  `json:"idempotencyKey"`
+}
+
+type lnurlPaymentStatus string
+
+type lnurlPaymentPreparation struct {
+	Status         lnurlPaymentStatus `json:"status"`
+	IdempotencyKey string             `json:"idempotencyKey"`
+}
+
+type lnurlPaymentReady struct {
+	Status         lnurlPaymentStatus `json:"status"`
+	IdempotencyKey string             `json:"idempotencyKey"`
+	AmountSat      uint64             `json:"amountSat"`
+	FeeSat         uint64             `json:"feeSat"`
+	TotalDebitSat  uint64             `json:"totalDebitSat"`
+}
+
+type sendPaymentResult struct {
+	Status lnurlPaymentStatus `json:"status"`
+}
+
 type closeWithdrawQuote struct {
 	Balance    coin.FormattedAmountWithConversions `json:"balance"`
 	BalanceSat uint64                              `json:"balanceSat"`
@@ -144,7 +174,15 @@ const (
 	paymentInputTypeBitcoinAddress = "bitcoinAddress"
 	paymentInputTypeBolt11         = "bolt11"
 	paymentInputTypeLNURLPay       = "lnurlPay"
+
+	lnurlPaymentStatusReady     lnurlPaymentStatus = "ready"
+	lnurlPaymentStatusUnknown   lnurlPaymentStatus = "unknown"
+	lnurlPaymentStatusPending   lnurlPaymentStatus = "pending"
+	lnurlPaymentStatusCompleted lnurlPaymentStatus = "completed"
+	lnurlPaymentStatusFailed    lnurlPaymentStatus = "failed"
 )
+
+var errLNURLPaymentIntentAlreadyBound = errors.New("LNURL payment intent already bound")
 
 type msatToSatRounding int
 
@@ -607,8 +645,113 @@ func (lightning *Lightning) parseLNURLPayRequest(inputStr string) (*breez_sdk_sp
 	}
 }
 
-// PreparePayment computes the fee quote for the provided payment input.
-func (lightning *Lightning) PreparePayment(request preparePaymentRequest) (*paymentFee, error) {
+func lnurlPaymentFingerprint(payRequest breez_sdk_spark.LnurlPayRequestDetails, amountSat uint64) string {
+	recipient := payRequest.Url
+	if recipient == "" {
+		recipient = payRequest.Callback
+	}
+	logicalPayment := paymentInputTypeLNURLPay + "\x00" + recipient + "\x00" + strconv.FormatUint(amountSat, 10)
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(logicalPayment)))
+}
+
+func activePaymentIntents(cfg *config.LightningConfig) (map[string]config.LightningPaymentIntent, error) {
+	if len(cfg.Accounts) == 0 {
+		return nil, errp.New("Lightning account not configured")
+	}
+	if cfg.Accounts[0].PaymentIntents == nil {
+		cfg.Accounts[0].PaymentIntents = map[string]config.LightningPaymentIntent{}
+	}
+	return cfg.Accounts[0].PaymentIntents, nil
+}
+
+func canonicalIdempotencyKey(idempotencyKey string) (string, error) {
+	parsed, err := uuid.Parse(idempotencyKey)
+	if err != nil || parsed.String() != idempotencyKey {
+		return "", errp.WithMessage(errLightningInvalidPaymentInput, "invalid idempotency key")
+	}
+	return idempotencyKey, nil
+}
+
+func lnurlPaymentStatusFromSDK(status breez_sdk_spark.PaymentStatus) lnurlPaymentStatus {
+	switch status {
+	case breez_sdk_spark.PaymentStatusCompleted:
+		return lnurlPaymentStatusCompleted
+	case breez_sdk_spark.PaymentStatusFailed:
+		return lnurlPaymentStatusFailed
+	case breez_sdk_spark.PaymentStatusPending:
+		return lnurlPaymentStatusPending
+	default:
+		// Unknown future SDK states must not enable another payment attempt.
+		return lnurlPaymentStatusPending
+	}
+}
+
+func (lightning *Lightning) paymentByID(idempotencyKey string) (*breez_sdk_spark.Payment, error) {
+	payments, err := lightning.listPayments()
+	if err != nil {
+		return nil, err
+	}
+	for index := range payments {
+		if payments[index].Id == idempotencyKey {
+			return &payments[index], nil
+		}
+	}
+	return nil, nil
+}
+
+func (lightning *Lightning) bindLNURLPaymentIntent(fingerprint, idempotencyKey string) error {
+	err := lightning.backendConfig.ModifyLightningConfigRollbackOnSaveError(func(cfg *config.LightningConfig) error {
+		intents, err := activePaymentIntents(cfg)
+		if err != nil {
+			return err
+		}
+		intent, ok := intents[fingerprint]
+		if ok {
+			if intent.IdempotencyKey != idempotencyKey {
+				return errp.WithMessage(
+					errLightningPaymentAttemptChanged,
+					"another LNURL payment attempt is active",
+				)
+			}
+			return errLNURLPaymentIntentAlreadyBound
+		}
+		intents[fingerprint] = config.LightningPaymentIntent{
+			IdempotencyKey: idempotencyKey,
+		}
+		return nil
+	})
+	if errors.Is(err, errLNURLPaymentIntentAlreadyBound) {
+		return nil
+	}
+	if err != nil {
+		return errp.Wrap(err, "persist payment intent")
+	}
+	return nil
+}
+
+func (lightning *Lightning) retireLNURLPaymentIntent(fingerprint, idempotencyKey string) error {
+	if err := lightning.backendConfig.ModifyLightningConfigRollbackOnSaveError(func(cfg *config.LightningConfig) error {
+		intents, err := activePaymentIntents(cfg)
+		if err != nil {
+			return err
+		}
+		intent, ok := intents[fingerprint]
+		if !ok || intent.IdempotencyKey != idempotencyKey {
+			return errp.WithMessage(
+				errLightningPaymentAttemptChanged,
+				"LNURL payment attempt changed",
+			)
+		}
+		delete(intents, fingerprint)
+		return nil
+	}); err != nil {
+		return errp.Wrap(err, "retire payment intent")
+	}
+	return nil
+}
+
+// PreparePayment computes a fee quote or returns the current state of an LNURL payment attempt.
+func (lightning *Lightning) PreparePayment(request preparePaymentRequest) (interface{}, error) {
 	switch request.Type {
 	case paymentInputTypeBitcoinAddress:
 		if request.AmountSat == nil {
@@ -666,7 +809,7 @@ func (lightning *Lightning) prepareBolt11Payment(paymentInvoice string, amountSa
 	return fee, nil
 }
 
-func (lightning *Lightning) prepareLNURLPay(inputStr string, amountSat *uint64) (*paymentFee, error) {
+func (lightning *Lightning) prepareLNURLPay(inputStr string, amountSat *uint64) (interface{}, error) {
 	if err := lightning.CheckActive(); err != nil {
 		return nil, err
 	}
@@ -681,6 +824,28 @@ func (lightning *Lightning) prepareLNURLPay(inputStr string, amountSat *uint64) 
 	if err := validateLNURLPayAmount(*payRequest, *amountSat); err != nil {
 		return nil, err
 	}
+	fingerprint := lnurlPaymentFingerprint(*payRequest, *amountSat)
+	intent, hasIntent := lightning.backendConfig.LookupLightningPaymentIntent(fingerprint)
+	status := lnurlPaymentStatusReady
+	idempotencyKey := ""
+	if hasIntent {
+		var err error
+		idempotencyKey, err = canonicalIdempotencyKey(intent.IdempotencyKey)
+		if err != nil {
+			return nil, err
+		}
+		payment, err := lightning.paymentByID(idempotencyKey)
+		if err != nil {
+			return nil, err
+		}
+		if payment != nil {
+			return &lnurlPaymentPreparation{
+				Status:         lnurlPaymentStatusFromSDK(payment.Status),
+				IdempotencyKey: idempotencyKey,
+			}, nil
+		}
+		status = lnurlPaymentStatusUnknown
+	}
 
 	prepareResponse, err := lightning.sdkService.PrepareLnurlPay(prepareLNURLPayRequest(*payRequest, *amountSat))
 	if err != nil {
@@ -689,28 +854,79 @@ func (lightning *Lightning) prepareLNURLPay(inputStr string, amountSat *uint64) 
 	}
 
 	fee := preparedLNURLPayFee(prepareResponse)
-	availableBalance, err := lightning.availableBalance()
-	if err != nil {
-		return nil, err
-	}
-	if err := checkPaymentBalance(fee, availableBalance); err != nil {
-		return fee, err
+	if !hasIntent {
+		availableBalance, err := lightning.availableBalance()
+		if err != nil {
+			return nil, err
+		}
+		if err := checkPaymentBalance(fee, availableBalance); err != nil {
+			return fee, err
+		}
+		generatedKey, err := uuid.NewRandom()
+		if err != nil {
+			return nil, errp.Wrap(err, "generate idempotency key")
+		}
+		idempotencyKey = generatedKey.String()
 	}
 	lightning.log.Printf("LNURL-Pay Fee: %v sats", fee.FeeSat)
-	return fee, nil
+	return &lnurlPaymentReady{
+		Status:         status,
+		IdempotencyKey: idempotencyKey,
+		AmountSat:      fee.AmountSat,
+		FeeSat:         fee.FeeSat,
+		TotalDebitSat:  fee.TotalDebitSat,
+	}, nil
+}
+
+// StartNewPayment retires a final LNURL attempt. A fresh prepare is required afterwards.
+func (lightning *Lightning) StartNewPayment(request startNewPaymentRequest) error {
+	if request.Type != paymentInputTypeLNURLPay {
+		return errp.New("Payment type not supported")
+	}
+	if err := lightning.CheckActive(); err != nil {
+		return err
+	}
+	if request.AmountSat == nil || *request.AmountSat == 0 {
+		return errLightningInvalidAmount
+	}
+	idempotencyKey, err := canonicalIdempotencyKey(request.IdempotencyKey)
+	if err != nil {
+		return err
+	}
+	payRequest, err := lightning.parseLNURLPayRequest(request.PaymentInput)
+	if err != nil {
+		return err
+	}
+	if err := validateLNURLPayAmount(*payRequest, *request.AmountSat); err != nil {
+		return err
+	}
+	fingerprint := lnurlPaymentFingerprint(*payRequest, *request.AmountSat)
+	intent, ok := lightning.backendConfig.LookupLightningPaymentIntent(fingerprint)
+	if !ok || intent.IdempotencyKey != idempotencyKey {
+		return errp.WithMessage(errLightningPaymentAttemptChanged, "LNURL payment attempt changed")
+	}
+	payment, err := lightning.paymentByID(idempotencyKey)
+	if err != nil {
+		return err
+	}
+	if payment == nil || (payment.Status != breez_sdk_spark.PaymentStatusCompleted &&
+		payment.Status != breez_sdk_spark.PaymentStatusFailed) {
+		return errp.WithMessage(errLightningPaymentNotFinal, "LNURL payment is not final")
+	}
+	return lightning.retireLNURLPaymentIntent(fingerprint, idempotencyKey)
 }
 
 // SendPayment executes the provided payment input.
-func (lightning *Lightning) SendPayment(request sendPaymentRequest) error {
+func (lightning *Lightning) SendPayment(request sendPaymentRequest) (*sendPaymentResult, error) {
 	switch request.Type {
 	case paymentInputTypeBitcoinAddress:
-		return lightning.sendBitcoinPayment(request)
+		return nil, lightning.sendBitcoinPayment(request)
 	case paymentInputTypeBolt11:
-		return lightning.sendBolt11Payment(request)
+		return nil, lightning.sendBolt11Payment(request)
 	case paymentInputTypeLNURLPay:
 		return lightning.sendLNURLPay(request)
 	default:
-		return errp.New("Payment type not supported")
+		return nil, errp.New("Payment type not supported")
 	}
 }
 
@@ -804,12 +1020,16 @@ func (lightning *Lightning) sendBolt11Payment(request sendPaymentRequest) error 
 	return nil
 }
 
-func (lightning *Lightning) sendLNURLPay(request sendPaymentRequest) error {
+func (lightning *Lightning) sendLNURLPay(request sendPaymentRequest) (*sendPaymentResult, error) {
 	if err := lightning.CheckActive(); err != nil {
-		return err
+		return nil, err
 	}
 	if request.AmountSat == nil || *request.AmountSat == 0 {
-		return errLightningInvalidAmount
+		return nil, errLightningInvalidAmount
+	}
+	idempotencyKey, err := canonicalIdempotencyKey(request.IdempotencyKey)
+	if err != nil {
+		return nil, err
 	}
 
 	lightning.log.Infof("Sending LNURL-Pay payment to %+v", request.PaymentInput)
@@ -817,38 +1037,71 @@ func (lightning *Lightning) sendLNURLPay(request sendPaymentRequest) error {
 
 	payRequest, err := lightning.parseLNURLPayRequest(request.PaymentInput)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := validateLNURLPayAmount(*payRequest, *request.AmountSat); err != nil {
-		return err
+		return nil, err
+	}
+	fingerprint := lnurlPaymentFingerprint(*payRequest, *request.AmountSat)
+	intent, hasIntent := lightning.backendConfig.LookupLightningPaymentIntent(fingerprint)
+	if hasIntent && intent.IdempotencyKey != idempotencyKey {
+		return nil, errp.WithMessage(
+			errLightningPaymentAttemptChanged,
+			"another LNURL payment attempt is active",
+		)
+	}
+	payment, err := lightning.paymentByID(idempotencyKey)
+	if err != nil {
+		return nil, err
+	}
+	if payment != nil {
+		if !hasIntent {
+			return nil, errp.WithMessage(
+				errLightningPaymentAttemptChanged,
+				"LNURL payment attempt was already retired",
+			)
+		}
+		return &sendPaymentResult{Status: lnurlPaymentStatusFromSDK(payment.Status)}, nil
 	}
 
 	prepareResponse, err := lightning.sdkService.PrepareLnurlPay(prepareLNURLPayRequest(*payRequest, *request.AmountSat))
 	if err != nil {
 		lightning.log.WithError(err).Error("Prepare LNURL-Pay failed")
-		return lightningPaymentError(err)
+		return nil, lightningPaymentError(err)
 	}
 
 	fee := preparedLNURLPayFee(prepareResponse)
 	if err := checkApprovedPaymentFee(fee.FeeSat, request.ApprovedFeeSat); err != nil {
-		return err
+		return nil, err
 	}
-	availableBalance, err := lightning.availableBalance()
-	if err != nil {
-		return err
-	}
-	if err := checkPaymentBalance(fee, availableBalance); err != nil {
-		return err
+	if !hasIntent {
+		availableBalance, err := lightning.availableBalance()
+		if err != nil {
+			return nil, err
+		}
+		if err := checkPaymentBalance(fee, availableBalance); err != nil {
+			return nil, err
+		}
 	}
 
-	_, err = lightning.sdkService.LnurlPay(breez_sdk_spark.LnurlPayRequest{
+	if err := lightning.bindLNURLPaymentIntent(fingerprint, idempotencyKey); err != nil {
+		return nil, err
+	}
+	response, err := lightning.sdkService.LnurlPay(breez_sdk_spark.LnurlPayRequest{
 		PrepareResponse: prepareResponse,
+		IdempotencyKey:  &idempotencyKey,
 	})
 	if err != nil {
 		lightning.log.WithError(err).Error("Send LNURL-Pay failed")
-		return lightningPaymentError(err)
+		payment, reconciliationErr := lightning.paymentByID(idempotencyKey)
+		if reconciliationErr != nil {
+			lightning.log.WithError(reconciliationErr).Warn("Reconcile LNURL-Pay payment failed")
+		} else if payment != nil {
+			return &sendPaymentResult{Status: lnurlPaymentStatusFromSDK(payment.Status)}, nil
+		}
+		return nil, lightningPaymentError(err)
 	}
-	return nil
+	return &sendPaymentResult{Status: lnurlPaymentStatusFromSDK(response.Payment.Status)}, nil
 }
 
 type bitcoinAddressToPkScripter interface {

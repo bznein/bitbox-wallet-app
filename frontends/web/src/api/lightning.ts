@@ -121,6 +121,7 @@ export type TSendPaymentRequest = {
   paymentInput: string;
   amountSat: number;
   approvedFeeSat: number;
+  idempotencyKey: string;
 };
 
 export type TPreparePaymentRequest = {
@@ -138,11 +139,35 @@ export type TPreparePaymentRequest = {
   amountSat: number;
 };
 
-export type TPreparePaymentResponse = {
+export type TPaymentFee = {
   amountSat: number;
   feeSat: number;
   idempotencyKey?: string;
   totalDebitSat: number;
+};
+
+export type TPrepareLNURLPaymentResponse = {
+  status: 'ready' | 'unknown';
+  idempotencyKey: string;
+  amountSat: number;
+  feeSat: number;
+  totalDebitSat: number;
+} | {
+  status: 'pending' | 'completed' | 'failed';
+  idempotencyKey: string;
+};
+
+export type TPreparePaymentResponse = TPaymentFee | TPrepareLNURLPaymentResponse;
+
+export type TSendPaymentResponse = {
+  status: 'pending' | 'completed' | 'failed';
+} | null;
+
+export type TStartNewPaymentRequest = {
+  type: TPaymentInputType.LNURL_PAY;
+  paymentInput: string;
+  amountSat: number;
+  idempotencyKey: string;
 };
 
 export type TServiceStatus = 'operational' | 'degraded' | 'partial' | 'major' | 'unknown';
@@ -344,8 +369,20 @@ export const postPreparePayment = async (data: TPreparePaymentRequest): Promise<
   );
 };
 
-export const postSendPayment = async (data: TSendPaymentRequest): Promise<void> => {
-  return postApiResponse<void, TSendPaymentRequest>('lightning/send-payment', data, 'Error calling postSendPayment');
+export const postSendPayment = async (data: TSendPaymentRequest): Promise<TSendPaymentResponse> => {
+  return postApiResponse<TSendPaymentResponse, TSendPaymentRequest>(
+    'lightning/send-payment',
+    data,
+    'Error calling postSendPayment'
+  );
+};
+
+export const postStartNewPayment = async (data: TStartNewPaymentRequest): Promise<void> => {
+  return postApiResponse<void, TStartNewPaymentRequest>(
+    'lightning/start-new-payment',
+    data,
+    'Error calling postStartNewPayment'
+  );
 };
 
 export const getReceivePayment = async (params: TReceivePaymentRequest): Promise<TReceivePaymentResponse> => {

@@ -146,6 +146,54 @@ func TestModifyLightningConfig(t *testing.T) {
 	require.Len(t, cfg3.LightningConfig().Accounts, 1)
 }
 
+func TestModifyLightningConfigRollsBackOnSaveError(t *testing.T) {
+	appConfigFilename := test.TstTempFile("appConfig")
+	accountsConfigFilename := test.TstTempFile("accountsConfig")
+	lightningConfigFilename := test.TstTempFile("lightningConfig")
+
+	cfg, err := NewConfig(appConfigFilename, accountsConfigFilename, lightningConfigFilename)
+	require.NoError(t, err)
+	require.NoError(t, cfg.ModifyLightningConfig(func(lightningCfg *LightningConfig) error {
+		lightningCfg.Accounts = []*LightningAccountConfig{{Code: "v0-deadbeef-ln-0"}}
+		return nil
+	}))
+
+	require.NoError(t, os.Remove(lightningConfigFilename))
+	require.NoError(t, os.Mkdir(lightningConfigFilename, 0o700))
+	t.Cleanup(func() {
+		require.NoError(t, os.Remove(lightningConfigFilename))
+	})
+
+	require.Error(t, cfg.ModifyLightningConfigRollbackOnSaveError(func(lightningCfg *LightningConfig) error {
+		lightningCfg.Accounts = nil
+		return nil
+	}))
+	require.Len(t, cfg.LightningConfig().Accounts, 1)
+}
+
+func TestLightningPaymentIntentIgnoresLegacyCompletedFlag(t *testing.T) {
+	var lightningConfig LightningConfig
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"accounts": [{
+			"paymentIntents": {
+				"fingerprint": {
+					"idempotencyKey": "00000000-0000-4000-8000-000000000001",
+					"completed": true
+				}
+			}
+		}]
+	}`), &lightningConfig))
+
+	require.Equal(
+		t,
+		"00000000-0000-4000-8000-000000000001",
+		lightningConfig.Accounts[0].PaymentIntents["fingerprint"].IdempotencyKey,
+	)
+	serialized, err := json.Marshal(lightningConfig)
+	require.NoError(t, err)
+	require.NotContains(t, string(serialized), "completed")
+}
+
 func TestLightningConfigPersistence(t *testing.T) {
 	appConfigFilename := test.TstTempFile("appConfig")
 	accountsConfigFilename := test.TstTempFile("accountsConfig")

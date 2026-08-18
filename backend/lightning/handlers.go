@@ -52,6 +52,7 @@ func NewHandlers(
 	handleNoError("/close-withdraw-funds", lightning.PostCloseWithdraw).Methods("POST")
 	handleNoError("/receive-payment", lightning.GetReceivePayment).Methods("GET")
 	handleNoError("/send-payment", lightning.PostSendPayment).Methods("POST")
+	handleNoError("/start-new-payment", lightning.PostStartNewPayment).Methods("POST")
 }
 
 func errorResponse(err error) responseDto {
@@ -344,12 +345,13 @@ func (lightning *Lightning) PostPreparePayment(r *http.Request) interface{} {
 		return errorResponse(err)
 	}
 
-	fee, err := lightning.PreparePayment(jsonBody)
+	result, err := lightning.PreparePayment(jsonBody)
 	if err != nil {
+		fee, _ := result.(*paymentFee)
 		return preparePaymentErrorResponse(err, fee)
 	}
 
-	return responseDto{Success: true, Data: fee}
+	return responseDto{Success: true, Data: result}
 }
 
 // GetReceivePayment handles the GET request to create a receive invoice.
@@ -376,9 +378,25 @@ func (lightning *Lightning) PostSendPayment(r *http.Request) interface{} {
 		return errorResponse(err)
 	}
 
-	if err := lightning.SendPayment(jsonBody); err != nil {
+	result, err := lightning.SendPayment(jsonBody)
+	if err != nil {
 		return errorResponse(err)
 	}
 
+	return responseDto{Success: true, Data: result}
+}
+
+// PostStartNewPayment handles retiring a final LNURL attempt.
+func (lightning *Lightning) PostStartNewPayment(r *http.Request) interface{} {
+	var jsonBody startNewPaymentRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&jsonBody); err != nil {
+		return errorResponse(err)
+	}
+
+	if err := lightning.StartNewPayment(jsonBody); err != nil {
+		return errorResponse(err)
+	}
 	return responseDto{Success: true}
 }

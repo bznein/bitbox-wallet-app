@@ -927,6 +927,8 @@
     "lightningInvalidAmount": "Invalid amount.",
     "lightningInvalidPaymentInput": "Invalid invoice or payment request.",
     "lightningInvoiceAlreadyUsed": "This Lightning invoice was already used. Please request a new invoice.",
+    "lightningPaymentAttemptChanged": "This payment attempt changed. Review its current status before continuing.",
+    "lightningPaymentNotFinal": "This payment is still pending or its result is unknown.",
     "lightningPaymentPreparationFailed": "Could not prepare payment. Please try again.",
     "lightningTopUpClaimFailed": "Please try claiming the top-up again.",
     "lightningTopUpRefundFailed": "Please try refunding the top-up again.",
@@ -1825,7 +1827,14 @@
         "input": "Or paste an address or invoice"
       },
       "lnurlPay": {
-        "invalidAmount": "Enter an amount between {{minAmount}} and {{maxAmount}} sats."
+        "alreadyPaid": "This payment was already sent.",
+        "invalidAmount": "Enter an amount between {{minAmount}} and {{maxAmount}} sats.",
+        "paymentFailed": "The payment failed. Review a fresh fee before trying again.",
+        "paymentPending": "The payment is pending. Waiting for confirmation.",
+        "paymentUnknown": "The previous result is unknown. Retrying with this fee will not send twice.",
+        "sendAnother": "Send another payment",
+        "tryAgain": "Try again",
+        "waiting": "Waiting…"
       },
       "onChain": "On-chain",
       "qrCode": {
