@@ -8,6 +8,7 @@ type TUseQRScannerOptions = {
   onStart?: () => void;
   onResult: (result: QrScanner.ScanResult) => void;
   onError: (error: any) => void;
+  overlayRef?: RefObject<HTMLDivElement>;
   stopOnResult?: boolean;
 };
 
@@ -16,6 +17,7 @@ export const useQRScanner = (
     onStart,
     onResult,
     onError,
+    overlayRef,
     stopOnResult = true,
   }: TUseQRScannerOptions
 ) => {
@@ -46,6 +48,7 @@ export const useQRScanner = (
       }
       try {
         loading.current = true;
+        const overlay = overlayRef?.current;
         scanner.current = new QrScanner(
           videoRef.current,
           result => {
@@ -60,9 +63,9 @@ export const useQRScanner = (
                 onErrorRef.current(err);
               }
             },
-            // disabled bc we draw their own scan overlay.
-            highlightScanRegion: false,
+            highlightScanRegion: Boolean(overlay),
             highlightCodeOutline: false,
+            overlay: overlay ?? undefined,
             calculateScanRegion: (v) => {
               const videoWidth = v.videoWidth;
               const videoHeight = v.videoHeight;
@@ -115,7 +118,7 @@ export const useQRScanner = (
         }
       })();
     };
-  }, [videoRef, stopOnResult, t]);
+  }, [videoRef, overlayRef, stopOnResult, t]);
 
   const toggleFlash = useCallback(async () => {
     const stream = videoRef.current?.srcObject;

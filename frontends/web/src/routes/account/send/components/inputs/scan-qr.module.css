@@ -32,10 +32,6 @@
   --scan-qr-content-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--space-default));
 }
 
-.container.fullscreen {
-  --scan-qr-focus-top: 35%;
-}
-
 @media (min-width: 769px) {
   .backdrop:not(.fullscreen) {
     background-color: var(--scan-qr-backdrop-background);
@@ -44,10 +40,6 @@
     width: min(90vw, 460px);
     height: min(85vh, 620px);
     border-radius: 16px;
-  }
-  .focus {
-    width: 220px;
-    height: 220px;
   }
 }
 
@@ -84,11 +76,6 @@
 
 .focus {
   position: absolute;
-  top: var(--scan-qr-focus-top);
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(80vw, 320px);
-  height: min(80vw, 320px);
   border-radius: 24px;
   box-shadow: 0 0 0 100vmax var(--scan-qr-focus-background);
 }

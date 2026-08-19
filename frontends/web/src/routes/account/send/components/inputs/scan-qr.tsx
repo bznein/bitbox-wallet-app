@@ -29,6 +29,7 @@ export const ScanQR = ({
 }: TProps) => {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -87,6 +88,7 @@ export const ScanQR = ({
     onStart: () => setCameraReady(true),
     onResult: result => handleValue(result.data),
     onError: err => console.error(err),
+    overlayRef,
     stopOnResult: false,
   });
 
@@ -121,14 +123,15 @@ export const ScanQR = ({
           poster="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%3E%20width=%2264%22%20height=%2248%22%3C/svg%3E"
         />
 
+        <div ref={overlayRef} className={style.focus}>
+          <span className={`${style.corner || ''} ${style.topLeft || ''}`} />
+          <span className={`${style.corner || ''} ${style.topRight || ''}`} />
+          <span className={`${style.corner || ''} ${style.bottomLeft || ''}`} />
+          <span className={`${style.corner || ''} ${style.bottomRight || ''}`} />
+          <p className={style.instruction}>{instruction}</p>
+        </div>
+
         <div className={style.overlay}>
-          <div className={style.focus}>
-            <span className={`${style.corner || ''} ${style.topLeft || ''}`} />
-            <span className={`${style.corner || ''} ${style.topRight || ''}`} />
-            <span className={`${style.corner || ''} ${style.bottomLeft || ''}`} />
-            <span className={`${style.corner || ''} ${style.bottomRight || ''}`} />
-            <p className={style.instruction}>{instruction}</p>
-          </div>
           {content && (
             <div className={style.contentSlot}>
               {content}
