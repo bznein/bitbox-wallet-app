@@ -7,9 +7,13 @@ type TProps = {
   children: ReactNode;
 };
 
-export const GuideWrapper = ({ children }: TProps) => {
+type TGuideWrapperProps = TProps & {
+  className?: string;
+};
+
+export const GuideWrapper = ({ children, className = '' }: TGuideWrapperProps) => {
   return (
-    <div className={styles.contentWithGuide}>
+    <div className={`${styles.contentWithGuide || ''} ${className}`}>
       {children}
     </div>
   );

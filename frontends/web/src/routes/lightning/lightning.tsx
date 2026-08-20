@@ -41,6 +41,7 @@ import {
 import { TransactionList } from '@/routes/account/components/transaction-list';
 import type { TTransactionListItem } from '@/routes/account/components/transaction-list';
 import { TransactionHistorySkeleton } from '@/routes/account/transaction-history-skeleton';
+import skeletonStyle from '@/components/skeleton/skeleton.module.css';
 import { Button, SearchInput } from '@/components/forms';
 import { LoupeBlue } from '@/components/icon';
 import { SubTitle } from '@/components/title';
@@ -86,7 +87,7 @@ const LightningPageLayout = ({
   const showFundingLimitWarning = hasExceededLightningFundingLimit(fundingLimit);
 
   return (
-    <GuideWrapper>
+    <GuideWrapper className={!accountDataLoaded ? skeletonStyle.delayed : undefined}>
       <GuidedContent>
         <Main>
           <ContentWrapper>

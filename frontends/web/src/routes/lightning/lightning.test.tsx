@@ -10,6 +10,7 @@ import * as devicesApi from '@/api/devices';
 import * as lightningApi from '@/api/lightning';
 import { ConfigContext } from '@/contexts/ConfigContext';
 import { RatesContext } from '@/contexts/RatesContext';
+import skeletonStyle from '@/components/skeleton/skeleton.module.css';
 import { Lightning } from './lightning';
 
 vi.mock('@/i18n/i18n');
@@ -103,10 +104,12 @@ describe('Lightning funding limit', () => {
 
   it('warns above the limit, links to send, and disables top up', async () => {
     const { container } = renderLightning();
+    expect(container.firstElementChild).toHaveClass(skeletonStyle.delayed || '');
 
     await waitFor(() => {
       expect(screen.getByText('lightning.limit.accountWarning')).toBeInTheDocument();
     });
+    expect(container.firstElementChild).not.toHaveClass(skeletonStyle.delayed || '');
     expect(screen.getByRole('link', { name: 'lightning.limit.moveCoins' })).toHaveAttribute('href', '/lightning/send');
     expect(container.querySelector('a[href="/lightning/receive"]')).toBeInTheDocument();
     expect(container.querySelector('a[href="/lightning/topup"]')).not.toBeInTheDocument();

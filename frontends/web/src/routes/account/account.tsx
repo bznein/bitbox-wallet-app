@@ -35,6 +35,7 @@ import { TransactionDetails } from '@/components/transactions/details';
 import { Button, SearchInput } from '@/components/forms';
 import { SubTitle } from '@/components/title';
 import { TransactionHistorySkeleton } from '@/routes/account/transaction-history-skeleton';
+import skeletonStyle from '@/components/skeleton/skeleton.module.css';
 import { RatesContext } from '@/contexts/RatesContext';
 import { OfflineError } from '@/components/banners/offline-error';
 import style from './account.module.css';
@@ -211,7 +212,7 @@ const RemountAccount = ({
   };
 
   return (
-    <GuideWrapper>
+    <GuideWrapper className={!hasDataLoaded ? skeletonStyle.delayed : undefined}>
       <GuidedContent>
         <Main>
           <ContentWrapper>

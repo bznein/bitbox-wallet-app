@@ -1,12 +1,21 @@
 .skeleton {
-    animation: skeleton-loading 1.4s ease infinite;
+    animation:
+        skeleton-appear 0s 200ms forwards,
+        skeleton-loading 1.4s ease 200ms infinite;
     background: linear-gradient(90deg, rgba(190, 190, 190, .2) 25%, rgba(129, 129, 129, .24) 37%, rgba(190, 190, 190, .2) 63%);
     background-size: 400% 100%;
     border-radius: var(--radius-xl);
     display: inline-block;
     max-width: 100%;
+    opacity: 0;
     overflow: clip;
 }
+
+.delayed {
+    animation: skeleton-appear 0s 200ms forwards;
+    opacity: 0;
+}
+
 .skeleton::before {
     /* Add an invisible underscore _ character to inherit the parents font-size and force the correct height */
     color: transparent;
@@ -14,6 +23,10 @@
     display: block;
     line-height: 1;
     min-width: 1em;
+}
+
+@keyframes skeleton-appear {
+    to { opacity: 1; }
 }
 
 @keyframes skeleton-loading {
