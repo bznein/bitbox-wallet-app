@@ -137,6 +137,10 @@ export const exportLogs = (): Promise<TSuccess> => {
   return apiPost('export-log');
 };
 
+export const exportLightningLogs = (): Promise<TSuccess> => {
+  return apiPost('lightning/export-log');
+};
+
 export const clearCache = (): Promise<TSuccess> => {
   return apiPost('clear-cache');
 };

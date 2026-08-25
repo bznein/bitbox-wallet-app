@@ -22,6 +22,12 @@ var maxLogFileSizeBytes int64 = 1 << 24 // ~16Mb
 // A commonly used suffix for rotated log files.
 const rotatedSuffix = ".1"
 
+// NewRotatingFileWriter opens a private rotating file writer for logs which must
+// not be written through the application logger.
+func NewRotatingFileWriter(name string) (io.WriteCloser, error) {
+	return openRotatingWriter(name)
+}
+
 // Logger adds a method to the logrus logger.
 type Logger struct {
 	logrus.Logger
@@ -119,6 +125,13 @@ type rotatingWriter struct {
 	mu         sync.Mutex
 	logfile    *os.File
 	bytesCount int64
+}
+
+// Close closes the active log file.
+func (rot *rotatingWriter) Close() error {
+	rot.mu.Lock()
+	defer rot.mu.Unlock()
+	return rot.logfile.Close()
 }
 
 // Write satisfies io.Writer interface.

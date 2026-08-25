@@ -374,6 +374,7 @@ func NewBackend(arguments *arguments.Arguments, environment Environment) (*Backe
 
 	backend.lightning = lightning.NewLightning(backend.config,
 		backend.arguments.CacheDirectoryPath(),
+		backend.arguments.MainDirectoryPath(),
 		backend.environment,
 		backend.Keystore,
 		backend.GetAccountFromCode,
@@ -1337,9 +1338,7 @@ func (backend *Backend) SetWatchonly(rootFingerprint []byte, watchonly bool) err
 	return nil
 }
 
-// ExportLogs function copy and save log.txt file to help users provide it to support while troubleshooting.
-func (backend *Backend) ExportLogs() error {
-	name := fmt.Sprintf("%s-log.txt", time.Now().Format("2006-01-02-at-15-04-05"))
+func (backend *Backend) exportLogs(logFilePath, name string) error {
 	exportsDir, err := utilConfig.ExportsDir()
 	if err != nil {
 		backend.log.WithError(err).Error("error exporting logs")
@@ -1371,7 +1370,6 @@ func (backend *Backend) ExportLogs() error {
 		backend.log.WithError(err).Error("error truncating log file")
 		return err
 	}
-	logFilePath := filepath.Join(utilConfig.AppDir(), "log.txt")
 
 	if err := logging.WriteCombinedLog(exportFile, logFilePath); err != nil {
 		backend.log.WithError(err).Error("error copying existing logs to new file")
@@ -1389,6 +1387,18 @@ func (backend *Backend) ExportLogs() error {
 		return err
 	}
 	return nil
+}
+
+// ExportLogs saves the application log to help with troubleshooting and support.
+func (backend *Backend) ExportLogs() error {
+	name := fmt.Sprintf("%s-log.txt", time.Now().Format("2006-01-02-at-15-04-05"))
+	return backend.exportLogs(filepath.Join(utilConfig.AppDir(), "log.txt"), name)
+}
+
+// ExportLightningLogs saves only the dedicated Breez SDK log.
+func (backend *Backend) ExportLightningLogs() error {
+	name := fmt.Sprintf("%s-lightning-log.txt", time.Now().Format("2006-01-02-at-15-04-05"))
+	return backend.exportLogs(backend.lightning.BreezLogFilePath(), name)
 }
 
 // Bluetooth returns the backend's bluetooth instance.

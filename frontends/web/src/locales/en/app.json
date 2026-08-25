@@ -1860,6 +1860,10 @@
       "enableWallet": "Enable lightning wallet",
       "enableWalletDescription": "Lightning enables instant and low fee payments.",
       "expert": "Expert",
+      "exportLogs": {
+        "description": "Export Breez SDK logs to help with troubleshooting and support. These logs may contain sensitive information.",
+        "title": "Export logs"
+      },
       "serviceProvider": "Service provider",
       "setLightningAddress": "Set lightning address",
       "status": "Status",

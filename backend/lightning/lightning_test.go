@@ -82,6 +82,7 @@ func newTestLightningWithConfigFilename(
 	return NewLightning(
 		cfg,
 		test.TstTempDir("lightning-cache"),
+		t.TempDir(),
 		environment,
 		func() keystore.Keystore { return nil },
 		nil,

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -36,6 +37,7 @@ const (
 	encryptedMnemonicV1Prefix = "v1:"
 	lnurlDomainDev            = "lnurl.shiftcrypto.dev"
 	lnurlDomainProd           = "bitbox.cash"
+	breezLogFilename          = "breez-sdk.log"
 )
 
 // Keep this local to avoid importing backend.Environment and creating a package cycle.
@@ -72,6 +74,7 @@ type Lightning struct {
 
 	backendConfig      *config.Config
 	cacheDirectoryPath string
+	breezLogFilePath   string
 	environment        environment
 	getKeystore        func() keystore.Keystore
 	getAccount         func(types.Code) (accounts.Interface, error)
@@ -92,6 +95,7 @@ type Lightning struct {
 // NewLightning creates a new instance of the Lightning struct.
 func NewLightning(config *config.Config,
 	cacheDirectoryPath string,
+	mainDirectoryPath string,
 	environment environment,
 	getKeystore func() keystore.Keystore,
 	getAccount func(types.Code) (accounts.Interface, error),
@@ -102,6 +106,7 @@ func NewLightning(config *config.Config,
 	return &Lightning{
 		backendConfig:      config,
 		cacheDirectoryPath: cacheDirectoryPath,
+		breezLogFilePath:   filepath.Join(mainDirectoryPath, breezLogFilename),
 		environment:        environment,
 		getKeystore:        getKeystore,
 		getAccount:         getAccount,
@@ -113,6 +118,11 @@ func NewLightning(config *config.Config,
 		btcCoin:            btcCoin,
 		devServers:         devServers,
 	}
+}
+
+// BreezLogFilePath returns the dedicated Breez SDK log file path.
+func (lightning *Lightning) BreezLogFilePath() string {
+	return lightning.breezLogFilePath
 }
 
 // Activate first creates a mnemonic from the keystore entropy, persists it, and connects to the
@@ -357,7 +367,9 @@ func (lightning *Lightning) connect() error {
 	account := lightning.Account()
 
 	if account != nil && lightning.sdkService == nil {
-		initializeLogging(lightning.log)
+		if err := initializeLogging(lightning.breezLogFilePath); err != nil {
+			lightning.log.WithError(err).Error("BreezSDK: Error init logging")
+		}
 
 		workingDir := path.Join(lightning.cacheDirectoryPath, accountBreezFolder(account.Code))
 
@@ -413,7 +425,6 @@ func (lightning *Lightning) connect() error {
 		}
 
 		sdk.AddEventListener(lightning)
-		initializeLogging(lightning.log)
 		_, err = sdk.SyncWallet(breez_sdk_spark.SyncWalletRequest{})
 		if err != nil {
 			lightning.log.WithError(err).Error("BreezSDK: Error connecting SDK")

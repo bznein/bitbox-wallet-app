@@ -3,56 +3,57 @@
 package lightning
 
 import (
+	"fmt"
+	"io"
+	"log"
+	"sync"
+
+	"github.com/BitBoxSwiss/bitbox-wallet-app/util/logging"
 	"github.com/breez/breez-sdk-spark-go/breez_sdk_spark"
-	"github.com/sirupsen/logrus"
 )
 
 type sdkLogger struct {
-	log *logrus.Entry
+	log    *log.Logger
+	writer io.Closer
 }
 
 func (logger *sdkLogger) Log(l breez_sdk_spark.LogEntry) {
-	logger.log.Printf("Received log [%v]: %v", l.Level, l.Line)
+	logger.log.Printf("[%s] %s", l.Level, l.Line)
 }
 
-var logListener *sdkLogger
+func (logger *sdkLogger) close() error {
+	return logger.writer.Close()
+}
 
-// initializeLogging manages the Breez SDK logging handling by only calling SetLogStream once.
-func initializeLogging(log *logrus.Entry) {
-	if logListener == nil {
-		logListener = &sdkLogger{log}
+func newSDKLogger(logFilePath string) (*sdkLogger, error) {
+	writer, err := logging.NewRotatingFileWriter(logFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("open Breez SDK log: %w", err)
+	}
+	return &sdkLogger{
+		log:    log.New(writer, "", log.LstdFlags|log.Lmicroseconds),
+		writer: writer,
+	}, nil
+}
+
+var (
+	logListener    *sdkLogger
+	loggingInitErr error
+	loggingOnce    sync.Once
+)
+
+// initializeLogging sends Breez SDK logs to their own private rotating file.
+func initializeLogging(logFilePath string) error {
+	loggingOnce.Do(func() {
+		logListener, loggingInitErr = newSDKLogger(logFilePath)
+		if loggingInitErr != nil {
+			return
+		}
 
 		var loggerImpl breez_sdk_spark.Logger = logListener
 		if err := breez_sdk_spark.InitLogging(nil, &loggerImpl, nil); err != nil {
-			log.WithError(err).Error("BreezSDK: Error init logging")
+			loggingInitErr = fmt.Errorf("initialize Breez SDK logging: %w", err)
 		}
-	}
+	})
+	return loggingInitErr
 }
-
-// var logListener *BreezLogListener
-
-// // BreezLogListener stores the log handler for listening to log events from the Breez SDK.
-// type BreezLogListener struct {
-// 	log *logrus.Entry
-// }
-
-// // Log receives log entries of different log levels and logs then the handlers log.
-// // Implementation of breez_sdk.EventListener.
-// func (listener *BreezLogListener) Log(logEntry breez_sdk.LogEntry) {
-// 	if logEntry.Level != "TRACE" {
-// 		listener.log.Infof("BreezSDK: [%s] %s", logEntry.Level, logEntry.Line)
-// 	} else {
-// 		listener.log.Tracef("BreezSDK: [%s] %s", logEntry.Level, logEntry.Line)
-// 	}
-// }
-
-// // initializeLogging manages the Breez SDK logging handling by only calling SetLogStream once.
-// func initializeLogging(log *logrus.Entry) {
-// 	if logListener == nil {
-// 		logListener = &BreezLogListener{log}
-
-// 		if err := breez_sdk.SetLogStream(logListener); err != nil {
-// 			log.WithError(err).Warn("BreezSDK: SetLogStream failed")
-// 		}
-// 	}
-// }

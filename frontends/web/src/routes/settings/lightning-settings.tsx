@@ -2,6 +2,7 @@
 
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { exportLightningLogs } from '@/api/backend';
 import { getLightningBalance, subscribeLightningBalance } from '@/api/lightning';
 import { ContentWrapper } from '@/components/contentwrapper/contentwrapper';
 import { GlobalBanners } from '@/components/banners';
@@ -13,6 +14,7 @@ import { getKeystoreName } from '@/api/keystores';
 import { useLoad, useSubscribe } from '@/hooks/api';
 import { useLightning } from '@/hooks/lightning';
 import { SettingsItem } from './components/settingsItem/settingsItem';
+import { ExportLogSetting } from './components/advanced-settings/export-log-setting';
 import { MobileHeader } from './components/mobile-header';
 import { TPagePropsWithSettingsTabs } from './types';
 import styles from './lightning-settings.module.css';
@@ -89,6 +91,11 @@ export const LightningSettings = ({
           onClick={() => navigate('/lightning/deactivate/')}
         />
         <SubTitle className={styles.sectionTitle}>{t('lightning.settings.expert')}</SubTitle>
+        <ExportLogSetting
+          description={t('lightning.settings.exportLogs.description')}
+          onExport={exportLightningLogs}
+          title={t('lightning.settings.exportLogs.title')}
+        />
         <SettingsItem
           disabled={!lightningBalance?.hasAvailable}
           settingName={<span className={styles.danger}>{t('lightning.settings.closeAndWithdrawFunds')}</span>}

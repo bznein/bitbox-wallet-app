@@ -100,6 +100,7 @@ type Backend interface {
 	Environment() backend.Environment
 	ClearCache() error
 	ExportLogs() error
+	ExportLightningLogs() error
 	ExportNotes() error
 	ImportNotes(jsonLines []byte) (*backend.ImportNotesResult, error)
 	ChartData() (*backend.Chart, error)
@@ -271,6 +272,7 @@ func NewHandlers(
 	getAPIRouterNoError(apiRouter)("/on-auth-setting-changed", handlers.postOnAuthSettingChanged).Methods("POST")
 	getAPIRouterNoError(apiRouter)("/clear-cache", handlers.postClearCache).Methods("POST")
 	getAPIRouterNoError(apiRouter)("/export-log", handlers.postExportLog).Methods("POST")
+	getAPIRouterNoError(apiRouter)("/lightning/export-log", handlers.postExportLightningLog).Methods("POST")
 	getAPIRouterNoError(apiRouter)("/accounts/eth-account-code", handlers.lookupEthAccountCode).Methods("POST")
 	getAPIRouterNoError(apiRouter)("/notes/export", handlers.postExportNotes).Methods("POST")
 	getAPIRouterNoError(apiRouter)("/notes/import", handlers.postImportNotes).Methods("POST")
@@ -1804,6 +1806,17 @@ func (handlers *Handlers) postExportLog(r *http.Request) interface{} {
 		ErrorCode    string `json:"errorCode,omitempty"`
 	}
 	if err := handlers.backend.ExportLogs(); err != nil {
+		return result{Success: false, ErrorMessage: err.Error()}
+	}
+	return result{Success: true}
+}
+
+func (handlers *Handlers) postExportLightningLog(r *http.Request) interface{} {
+	type result struct {
+		Success      bool   `json:"success"`
+		ErrorMessage string `json:"errorMessage,omitempty"`
+	}
+	if err := handlers.backend.ExportLightningLogs(); err != nil {
 		return result{Success: false, ErrorMessage: err.Error()}
 	}
 	return result{Success: true}
