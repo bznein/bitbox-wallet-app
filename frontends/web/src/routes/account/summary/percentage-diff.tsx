@@ -39,9 +39,7 @@ export const PercentageDiff = ({
   const { hideAmounts, nativeLocale } = useContext(AppContext);
   const { decimal, group } = useContext(LocalizationContext);
   const { isDarkMode } = useDarkmode();
-  const differenceAvailable = difference !== undefined
-    && difference !== null
-    && Number.isFinite(difference);
+  const differenceAvailable = typeof difference === 'number' && Number.isFinite(difference);
   const positive = differenceAvailable && difference > 0;
   const negative = differenceAvailable && difference < 0;
   const className = positive ? styles.up || '' : negative ? styles.down || '' : '';

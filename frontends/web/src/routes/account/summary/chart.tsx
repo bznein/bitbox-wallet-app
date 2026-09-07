@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { MutableRefObject, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { AutoscaleInfoProvider, createChart, IChartApi, LineData, LineStyle, LogicalRange, ISeriesApi, MouseEventParams, ColorType, Time } from 'lightweight-charts';
-import type { TChartData, ChartData, FormattedLineData } from '@/api/account';
+import type { TChartData, ChartData } from '@/api/account';
 import { usePrevious } from '@/hooks/previous';
 import { Skeleton } from '@/components/skeleton/skeleton';
 import { Amount } from '@/components/amount/amount';
@@ -50,19 +50,18 @@ type FormattedData = {
 };
 
 const updateRange = (
-  chart: MutableRefObject<IChartApi | undefined>,
-  chartDisplay: TChartDisplay,
+  chart: IChartApi | undefined,
   startTimestamp: number | null,
 ) => {
-  if (!chart.current) {
+  if (!chart) {
     return;
   }
 
-  const range = getChartVisibleRange(chartDisplay, startTimestamp);
+  const range = getChartVisibleRange(startTimestamp);
   if (range) {
-    chart.current.timeScale().setVisibleRange(range);
+    chart.timeScale().setVisibleRange(range);
   } else {
-    chart.current.timeScale().fitContent();
+    chart.timeScale().fitContent();
   }
 };
 
@@ -161,9 +160,9 @@ export const Chart = ({
   const switchedBadgeHideTimeout = useRef<number>();
   const switchedBadgeClearTimeout = useRef<number>();
 
-  const [source, setSource] = useState<'daily' | 'hourly'>(chartDisplay === 'week' ? 'hourly' : 'daily');
+  const source = chartDisplay === 'week' ? 'hourly' : 'daily';
   const rangeStartTimestamp = data.chartPerformance[chartDisplay].startTimestamp;
-  const [valueDifference, setValueDifference] = useState<number>();
+  const [valueDifference, setValueDifference] = useState<number | null>();
   const [diffSince, setDiffSince] = useState<string>();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isSwitchedBadgeVisible, setIsSwitchedBadgeVisible] = useState(false);
@@ -206,52 +205,13 @@ export const Chart = ({
     });
   };
 
-  const displayWeek = () => {
+  const displayRange = (display: TChartDisplay) => {
     triggerHapticFeedback();
-    if (source !== 'hourly' && lineSeries.current && data.chartDataHourly && chart.current) {
-      lineSeries.current.setData(data.chartDataHourly || []);
-      setFormattedData(data.chartDataHourly || []);
-      chart.current.applyOptions({ timeScale: { timeVisible: true } });
-    }
-    setChartDisplay('week');
-    setSource('hourly');
-  };
-
-  const displayMonth = () => {
-    triggerHapticFeedback();
-    if (source !== 'daily' && lineSeries.current && data.chartDataDaily && chart.current) {
-      lineSeries.current.setData(data.chartDataDaily || []);
-      setFormattedData(data.chartDataDaily || []);
-      chart.current.applyOptions({ timeScale: { timeVisible: false } });
-    }
-    setChartDisplay('month');
-    setSource('daily');
-  };
-
-  const displayYear = () => {
-    triggerHapticFeedback();
-    if (source !== 'daily' && lineSeries.current && data.chartDataDaily && chart.current) {
-      lineSeries.current.setData(data.chartDataDaily);
-      setFormattedData(data.chartDataDaily);
-      chart.current.applyOptions({ timeScale: { timeVisible: false } });
-    }
-    setChartDisplay('year');
-    setSource('daily');
-  };
-
-  const displayAll = () => {
-    triggerHapticFeedback();
-    if (source !== 'daily' && lineSeries.current && data.chartDataDaily && chart.current) {
-      lineSeries.current.setData(data.chartDataDaily);
-      setFormattedData(data.chartDataDaily);
-      chart.current.applyOptions({ timeScale: { timeVisible: false } });
-    }
-    setChartDisplay('all');
-    setSource('daily');
+    setChartDisplay(display);
   };
 
   useEffect(() => {
-    updateRange(chart, chartDisplay, rangeStartTimestamp);
+    updateRange(chart.current, rangeStartTimestamp);
   }, [chartDisplay, rangeStartTimestamp, source]);
 
   const onResize = useCallback(() => {
@@ -276,8 +236,8 @@ export const Chart = ({
         visible: hideAmounts ? false : !isMobile,
       },
     });
-    updateRange(chart, chartDisplay, rangeStartTimestamp);
-  }, [chartDisplay, hideAmounts, rangeStartTimestamp]);
+    updateRange(chart.current, rangeStartTimestamp);
+  }, [hideAmounts, rangeStartTimestamp]);
 
   useEffect(() => {
     window.addEventListener('resize', onResize);
@@ -320,26 +280,16 @@ export const Chart = ({
       return;
     }
     const rangeFrom = Math.max(Math.floor(visiblerange.barsBefore), 0);
-    if (!chartData[rangeFrom]) {
-      // when data series have changed it triggers subscribeVisibleLogicalRangeChange
-      // but at this point the setVisibleRange has not executed what the new range
-      // should be and therefore barsBefore might still point to the old range
-      // so we have to ignore this call and expect setVisibleRange with correct range
-      setValueDifference(0);
+    const firstEntry = chartData[rangeFrom];
+    const startEntry = firstEntry?.value === 0 ? chartData[rangeFrom + 1] : firstEntry;
+    // Series changes can temporarily leave the visible range without a starting point.
+    if (!startEntry || startEntry.value <= 0 || !Number.isFinite(startEntry.value) || data.chartTotal === null) {
+      setValueDifference(null);
       setDiffSince('');
       return;
     }
-    const nextValue = chartData[rangeFrom + 1] as FormattedLineData | undefined;
-    const valueFrom = chartData[rangeFrom].value === 0 ? nextValue?.value : chartData[rangeFrom].value;
-    if (!valueFrom || !Number.isFinite(valueFrom)) {
-      setValueDifference(0);
-      setDiffSince('');
-      return;
-    }
-    const valueTo = data.chartTotal;
-    const valueDiff = valueTo ? valueTo - valueFrom : 0;
-    setValueDifference(valueDiff / valueFrom);
-    setDiffSince(`${chartData[rangeFrom].formattedValue} (${renderDate(Number(chartData[rangeFrom].time) * 1000, i18n.language, source)})`);
+    setValueDifference((data.chartTotal - startEntry.value) / startEntry.value);
+    setDiffSince(`${startEntry.formattedValue} (${renderDate(Number(startEntry.time) * 1000, i18n.language, source)})`);
   }, [data, i18n.language, source]);
 
   const removeChart = useCallback(() => {
@@ -466,7 +416,7 @@ export const Chart = ({
         },
         timeScale: {
           borderVisible: false,
-          timeVisible: false,
+          timeVisible: chartDisplay === 'week',
           visible: !isMobile,
         },
         trackingMode: {
@@ -513,7 +463,7 @@ export const Chart = ({
         ref.current?.classList.remove(styles.invisible);
       }
       chartInitialized.current = true;
-      updateRange(chart, chartDisplay, rangeStartTimestamp);
+      updateRange(chart.current, rangeStartTimestamp);
     }
   }, [calculateChange, chartDisplay, data.chartDataDaily, data.chartDataHourly, data.chartDataMissing, data.chartFiat, hasData, hideAmounts, i18n.language, isMobile, isDarkMode, rangeStartTimestamp]);
 
@@ -522,13 +472,11 @@ export const Chart = ({
     initChart();
   };
 
-  const togglePortfolioPercentageType = () => {
-    const nextType = portfolioPercentageType === 'moneyWeightedReturn'
-      ? 'value'
-      : 'moneyWeightedReturn';
+  const nextPercentageType = portfolioPercentageType === 'moneyWeightedReturn' ? 'value' : 'moneyWeightedReturn';
 
-    updatePortfolioPercentageType(nextType);
-    setSwitchedToType(nextType);
+  const togglePortfolioPercentageType = () => {
+    updatePortfolioPercentageType(nextPercentageType);
+    setSwitchedToType(nextPercentageType);
     setIsSwitchedBadgeVisible(false);
 
     if (switchedBadgeHideTimeout.current) {
@@ -600,24 +548,22 @@ export const Chart = ({
   const difference = portfolioPercentageType === 'moneyWeightedReturn'
     ? moneyWeightedReturn
     : valueDifference;
-  const switchedLabel = switchedToType
-    ? t(`chart.displayMode.${switchedToType === 'value' ? 'totalValue' : 'performance'}`)
-    : undefined;
-  const differenceAvailable = difference !== undefined
-    && difference !== null
-    && Number.isFinite(difference);
-  const currentDisplayModeLabel = t(`chart.displayMode.${portfolioPercentageType === 'value' ? 'totalValue' : 'performance'}`);
-  const nextDisplayModeLabel = t(`chart.displayMode.${portfolioPercentageType === 'value' ? 'performance' : 'totalValue'}`);
+  const displayModeLabels = {
+    value: t('chart.displayMode.totalValue'),
+    moneyWeightedReturn: t('chart.displayMode.performance'),
+  };
+  const switchedLabel = switchedToType ? displayModeLabels[switchedToType] : undefined;
+  const differenceAvailable = typeof difference === 'number' && Number.isFinite(difference);
   const percentageToggleLabel = differenceAvailable
-    ? t('chart.displayMode.switchTo', { displayMode: nextDisplayModeLabel })
+    ? t('chart.displayMode.switchTo', { displayMode: displayModeLabels[nextPercentageType] })
     : t('chart.displayMode.unavailableSwitchTo', {
-      displayMode: currentDisplayModeLabel,
-      nextDisplayMode: nextDisplayModeLabel,
+      displayMode: displayModeLabels[portfolioPercentageType],
+      nextDisplayMode: displayModeLabels[nextPercentageType],
     });
 
-  if (!hasData && chartIsUpToDate && valueDifference) {
+  if (!hasData && chartIsUpToDate && valueDifference !== null) {
     setDiffSince('');
-    setValueDifference(0);
+    setValueDifference(null);
   }
 
   const {
@@ -635,10 +581,10 @@ export const Chart = ({
     display: chartDisplay,
     disableFilters,
     disableWeeklyFilters,
-    onDisplayWeek: displayWeek,
-    onDisplayMonth: displayMonth,
-    onDisplayYear: displayYear,
-    onDisplayAll: displayAll,
+    onDisplayWeek: () => displayRange('week'),
+    onDisplayMonth: () => displayRange('month'),
+    onDisplayYear: () => displayRange('year'),
+    onDisplayAll: () => displayRange('all'),
   };
 
   const chartHeight = `${!isMobile ? height : mobileHeight}px`;

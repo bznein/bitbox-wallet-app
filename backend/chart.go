@@ -121,7 +121,6 @@ func (backend *Backend) ChartData() (*Chart, error) {
 
 	currentTotal := new(big.Rat)
 	performanceTotal := new(big.Rat)
-	currentTotalMissing := false
 	chartCashFlows := []chartCashFlow{}
 	// Total number of transactions across all active accounts.
 	totalNumberOfTransactions := 0
@@ -141,7 +140,7 @@ func (backend *Backend) ChartData() (*Chart, error) {
 			return nil, err
 		}
 		totalNumberOfTransactions += len(txs)
-		chartCashFlows = backend.appendChartCashFlows(account, fiat, txs, chartCashFlows)
+		chartCashFlows = backend.appendChartCashFlows(account.Coin(), fiat, txs, now, chartCashFlows)
 
 		coinDecimals := coin.DecimalsExp(account.Coin(), false)
 
@@ -152,14 +151,12 @@ func (backend *Backend) ChartData() (*Chart, error) {
 		// As a workaround, we call accountFiatBalance, which computes the total based on the latest rates.
 		fiatValue, err := backend.accountFiatBalance(account, fiat)
 		if err != nil {
-			currentTotalMissing = true
 			return nil, err
 		}
 		currentTotal.Add(currentTotal, fiatValue)
 
 		performanceFiatValue, err := backend.convertToFiat(account.Coin(), txs.LatestConfirmedBalance(), fiat)
 		if err != nil {
-			currentTotalMissing = true
 			return nil, err
 		}
 		performanceTotal.Add(performanceTotal, performanceFiatValue)
@@ -252,7 +249,7 @@ func (backend *Backend) ChartData() (*Chart, error) {
 		// 1) unconfirmed tx are not in the timeseries
 		// 2) coingecko might not have rates yet up until after all transactions, so they'd also be
 		// missing from the timeseries (`until` is up to 2h in the past).
-		if isUpToDate && !currentTotalMissing {
+		if isUpToDate {
 			total, _ := currentTotal.Float64()
 			result = append(result, ChartEntry{
 				Time:           now.Unix(),
@@ -290,16 +287,7 @@ func (backend *Backend) ChartData() (*Chart, error) {
 		chartDataMissing = false
 	}
 
-	var chartTotal *float64
-	var chartPerformanceTotal *float64
-	var formattedChartTotal string
-	if !currentTotalMissing {
-		tot, _ := currentTotal.Float64()
-		chartTotal = &tot
-		formattedChartTotal = coin.FormatAsCurrency(currentTotal, fiat)
-		performanceTot, _ := performanceTotal.Float64()
-		chartPerformanceTotal = &performanceTot
-	}
+	chartTotal, _ := currentTotal.Float64()
 
 	chartDataDailyForPerformance := toSortedSlice(chartEntriesDaily, fiat)
 	chartDataHourlyForPerformance := toSortedSlice(chartEntriesHourly, fiat)
@@ -309,16 +297,18 @@ func (backend *Backend) ChartData() (*Chart, error) {
 		return chartCashFlows[i].Time.Before(chartCashFlows[j].Time)
 	})
 
-	chartPerformance := ChartPerformanceByDisplay{}
+	var chartPerformanceTotal *float64
 	if !chartDataMissing {
-		chartPerformance = computeChartPerformance(
-			now,
-			chartDataDailyForPerformance,
-			chartDataHourlyForPerformance,
-			chartCashFlows,
-			chartPerformanceTotal,
-		)
+		total, _ := performanceTotal.Float64()
+		chartPerformanceTotal = &total
 	}
+	chartPerformance := computeChartPerformance(
+		now,
+		chartDataDailyForPerformance,
+		chartDataHourlyForPerformance,
+		chartCashFlows,
+		chartPerformanceTotal,
+	)
 
 	return &Chart{
 		DataMissing:    chartDataMissing,
@@ -326,8 +316,8 @@ func (backend *Backend) ChartData() (*Chart, error) {
 		DataHourly:     chartDataHourly,
 		Fiat:           fiat,
 		Performance:    chartPerformance,
-		Total:          chartTotal,
-		FormattedTotal: formattedChartTotal,
+		Total:          &chartTotal,
+		FormattedTotal: coin.FormatAsCurrency(currentTotal, fiat),
 		IsUpToDate:     isUpToDate,
 		LastTimestamp:  lastTimestamp,
 	}, nil

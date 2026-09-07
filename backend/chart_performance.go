@@ -39,10 +39,6 @@ type chartWeightedCashFlow struct {
 	RemainingWeight float64
 }
 
-func utcRoundedHour(now time.Time) time.Time {
-	return now.UTC().Truncate(time.Hour)
-}
-
 func hasCashFlowBetween(cashFlows []chartCashFlow, start, end time.Time) bool {
 	for _, cashFlow := range cashFlows {
 		if cashFlow.Time.After(start) && !cashFlow.Time.After(end) {
@@ -53,10 +49,6 @@ func hasCashFlowBetween(cashFlows []chartCashFlow, start, end time.Time) bool {
 }
 
 func findPerformanceStartEntry(entries []ChartEntry, from time.Time, cashFlows []chartCashFlow) *ChartEntry {
-	if len(entries) == 0 {
-		return nil
-	}
-
 	startIndex := 0
 	if !from.IsZero() {
 		startIndex = sort.Search(len(entries), func(i int) bool {
@@ -132,6 +124,9 @@ func solveChartMoneyWeightedReturn(
 	tolerance := math.Max(scale*1e-12, 1e-12)
 
 	valueAtZero := valueAt(0)
+	if math.IsNaN(valueAtZero) || math.IsInf(valueAtZero, 0) {
+		return nil
+	}
 	if math.Abs(valueAtZero) <= tolerance {
 		result := 0.0
 		return &result
@@ -183,9 +178,6 @@ func solveChartMoneyWeightedReturn(
 		}
 		if midValue == 0 {
 			result := math.Expm1(midLogReturn)
-			if math.IsNaN(result) || math.IsInf(result, 0) {
-				return nil
-			}
 			return &result
 		}
 		if chartHasSignChange(lowerValue, midValue) {
@@ -196,10 +188,8 @@ func solveChartMoneyWeightedReturn(
 		}
 	}
 
+	// All candidate log returns stay within +/-maxAbsLogReturn, so Expm1 is finite.
 	result := math.Expm1((lowerLogReturn + upperLogReturn) / 2)
-	if math.IsNaN(result) || math.IsInf(result, 0) {
-		return nil
-	}
 	return &result
 }
 
@@ -208,12 +198,8 @@ func calculateMoneyWeightedReturn(
 	startTime, endTime time.Time,
 	cashFlows []chartCashFlow,
 ) *float64 {
-	if beginningValue < 0 || endingValue < 0 || !endTime.After(startTime) {
-		return nil
-	}
-
 	periodSeconds := endTime.Sub(startTime).Seconds()
-	if periodSeconds <= 0 {
+	if beginningValue < 0 || endingValue < 0 || periodSeconds <= 0 {
 		return nil
 	}
 
@@ -276,9 +262,10 @@ func (backend *Backend) fiatValueAt(asset coin.Coin, amount coin.Amount, fiat st
 }
 
 func (backend *Backend) appendChartCashFlows(
-	account accounts.Interface,
+	asset coin.Coin,
 	fiat string,
 	txs accounts.OrderedTransactions,
+	now time.Time,
 	flows []chartCashFlow,
 ) []chartCashFlow {
 	for _, tx := range txs {
@@ -296,30 +283,19 @@ func (backend *Backend) appendChartCashFlows(
 			continue
 		}
 
-		value, ok := backend.fiatValueAt(account.Coin(), tx.Amount, fiat, *tx.Timestamp)
-		if !ok {
-			flows = append(flows, chartCashFlow{
-				Time:           *tx.Timestamp,
-				ValueAvailable: false,
-			})
-			continue
+		at := *tx.Timestamp
+		// The confirmed balance already includes this transfer, even if its block time is ahead.
+		if at.After(now) {
+			at = now
 		}
-
+		value, ok := backend.fiatValueAt(asset, tx.Amount, fiat, at)
 		flows = append(flows, chartCashFlow{
-			Time:           *tx.Timestamp,
+			Time:           at,
 			Value:          multiplier * value,
-			ValueAvailable: true,
+			ValueAvailable: ok,
 		})
 	}
 	return flows
-}
-
-func timestampPointer(at time.Time) *int64 {
-	if at.IsZero() {
-		return nil
-	}
-	timestamp := at.Unix()
-	return &timestamp
 }
 
 func chartPerformanceForRange(
@@ -328,8 +304,10 @@ func chartPerformanceForRange(
 	rangeStart, endTime time.Time,
 	endingValue *float64,
 ) ChartPerformance {
-	performance := ChartPerformance{
-		StartTimestamp: timestampPointer(rangeStart),
+	var performance ChartPerformance
+	if !rangeStart.IsZero() {
+		timestamp := rangeStart.Unix()
+		performance.StartTimestamp = &timestamp
 	}
 	startEntry := findPerformanceStartEntry(entries, rangeStart, cashFlows)
 	if startEntry == nil || endingValue == nil {
@@ -352,7 +330,7 @@ func computeChartPerformance(
 	cashFlows []chartCashFlow,
 	chartTotal *float64,
 ) ChartPerformanceByDisplay {
-	roundedHour := utcRoundedHour(now)
+	roundedHour := now.UTC().Truncate(time.Hour)
 
 	return ChartPerformanceByDisplay{
 		Week: chartPerformanceForRange(

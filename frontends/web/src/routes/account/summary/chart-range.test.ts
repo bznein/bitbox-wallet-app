@@ -8,13 +8,13 @@ describe('getChartVisibleRange', () => {
     const now = new Date('2026-01-31T15:30:45.000Z');
     const startTimestamp = Date.parse('2025-12-31T15:00:00.000Z') / 1000;
 
-    expect(getChartVisibleRange('month', startTimestamp, now)).toEqual({
+    expect(getChartVisibleRange(startTimestamp, now)).toEqual({
       from: startTimestamp,
       to: Date.parse('2026-01-31T15:00:00.000Z') / 1000,
     });
   });
 
   it('fits all available content for the all-time display', () => {
-    expect(getChartVisibleRange('all', null)).toBeUndefined();
+    expect(getChartVisibleRange(null)).toBeUndefined();
   });
 });

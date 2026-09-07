@@ -42,6 +42,46 @@ func TestCalculateMoneyWeightedReturnWithCashFlows(t *testing.T) {
 	require.InDelta(t, 1.25, *result, 1e-12)
 }
 
+func TestChartPerformanceIncludesFutureConfirmedTransfers(t *testing.T) {
+	backend := newBackend(t, testnetDisabled, regtestDisabled)
+	backend.ratesUpdater.Stop()
+	backend.ratesUpdater = rates.MockRateUpdater()
+	defer backend.Close()
+
+	// The mock rate is 2 USD/BTC now and 3 USD/BTC at the future block timestamp.
+	now := time.Unix(1598918700, 0)
+	start := now.Add(-24 * time.Hour)
+	future := now.Add(2 * time.Hour)
+	asset := backend.coins[coin.CodeBTC]
+	for _, txType := range []accounts.TxType{accounts.TxTypeReceive, accounts.TxTypeSend} {
+		t.Run(string(txType), func(t *testing.T) {
+			txs := accounts.NewOrderedTransactions([]*accounts.TransactionData{
+				{
+					Timestamp: &start,
+					Height:    10,
+					Type:      accounts.TxTypeReceive,
+					Amount:    coin.NewAmountFromInt64(200000000),
+				},
+				{
+					Timestamp: &future,
+					Height:    11,
+					Type:      txType,
+					Amount:    coin.NewAmountFromInt64(100000000),
+				},
+			})
+			flows := backend.appendChartCashFlows(asset, "USD", txs, now, nil)
+			endingValue, ok := backend.fiatValueAt(asset, txs.LatestConfirmedBalance(), "USD", now)
+			require.True(t, ok)
+
+			result := calculateMoneyWeightedReturn(4, endingValue, start, now, flows)
+
+			require.NotNil(t, result)
+			require.InDelta(t, 0, *result, 1e-12)
+			require.Equal(t, future, *txs[0].Timestamp, "chart normalization must not change the transaction")
+		})
+	}
+}
+
 func TestChartDataUsesAvailableBalanceForVisibleTotal(t *testing.T) {
 	backend := newBackend(t, testnetDisabled, regtestDisabled)
 	backend.ratesUpdater.Stop()
@@ -135,6 +175,18 @@ func TestComputeChartPerformanceDailyRangesUseCurrentUTCHourBoundary(t *testing.
 	require.Equal(t, time.Date(2025, time.January, 31, 15, 0, 0, 0, time.UTC).Unix(), *performance.Year.StartTimestamp)
 	require.NotNil(t, performance.Year.MoneyWeightedReturn)
 	require.InDelta(t, 110.0/75.0-1, *performance.Year.MoneyWeightedReturn, 1e-12)
+}
+
+func TestComputeChartPerformanceUnavailableRetainsRangeStarts(t *testing.T) {
+	now := time.Date(2026, time.January, 31, 15, 30, 0, 0, time.UTC)
+	performance := computeChartPerformance(now, nil, nil, nil, nil)
+
+	for _, period := range []ChartPerformance{performance.Week, performance.Month, performance.Year} {
+		require.NotNil(t, period.StartTimestamp)
+		require.Nil(t, period.MoneyWeightedReturn)
+	}
+	require.Nil(t, performance.All.StartTimestamp)
+	require.Nil(t, performance.All.MoneyWeightedReturn)
 }
 
 func TestChartPerformanceForRangeUsesFirstPositiveEntry(t *testing.T) {
