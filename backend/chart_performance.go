@@ -125,90 +125,59 @@ func solveChartMoneyWeightedReturn(
 		maxIterations        = 200
 	)
 
+	valueAt := func(logReturn float64) float64 {
+		return chartMoneyWeightedReturnValue(logReturn, beginningValue, endingValue, cashFlows)
+	}
 	scale := chartMoneyWeightedReturnScale(beginningValue, endingValue, cashFlows)
 	tolerance := math.Max(scale*1e-12, 1e-12)
 
-	valueAtZero := chartMoneyWeightedReturnValue(0, beginningValue, endingValue, cashFlows)
+	valueAtZero := valueAt(0)
 	if math.Abs(valueAtZero) <= tolerance {
 		result := 0.0
 		return &result
 	}
 
 	var lowerLogReturn, upperLogReturn float64
-	var lowerValue float64
 	foundBracket := false
-
-	previousPositiveLogReturn := 0.0
-	previousPositiveValue := valueAtZero
-	previousNegativeLogReturn := 0.0
-	previousNegativeValue := valueAtZero
+	previousStep := 0.0
+	previousValues := [2]float64{valueAtZero, valueAtZero}
 	for step := initialLogReturnStep; ; step *= 2 {
 		currentStep := math.Min(step, maxAbsLogReturn)
-		positiveLogReturn := currentStep
-		positiveValue := chartMoneyWeightedReturnValue(
-			positiveLogReturn,
-			beginningValue,
-			endingValue,
-			cashFlows,
-		)
-		if math.IsNaN(positiveValue) || math.IsInf(positiveValue, 0) {
-			return nil
+		// Preserve positive-first ordering when both directions can contain a root.
+		for i, direction := range []float64{1, -1} {
+			logReturn := direction * currentStep
+			value := valueAt(logReturn)
+			if math.IsNaN(value) || math.IsInf(value, 0) {
+				return nil
+			}
+			if value == 0 {
+				result := math.Expm1(logReturn)
+				return &result
+			}
+			if chartHasSignChange(previousValues[i], value) {
+				previousLogReturn := direction * previousStep
+				lowerLogReturn = math.Min(previousLogReturn, logReturn)
+				upperLogReturn = math.Max(previousLogReturn, logReturn)
+				foundBracket = true
+				break
+			}
+			previousValues[i] = value
 		}
-		if positiveValue == 0 {
-			result := math.Expm1(positiveLogReturn)
-			return &result
-		}
-		if chartHasSignChange(previousPositiveValue, positiveValue) {
-			lowerLogReturn = previousPositiveLogReturn
-			upperLogReturn = positiveLogReturn
-			lowerValue = previousPositiveValue
-			foundBracket = true
-			break
-		}
-		previousPositiveLogReturn = positiveLogReturn
-		previousPositiveValue = positiveValue
 
-		negativeLogReturn := -currentStep
-		negativeValue := chartMoneyWeightedReturnValue(
-			negativeLogReturn,
-			beginningValue,
-			endingValue,
-			cashFlows,
-		)
-		if math.IsNaN(negativeValue) || math.IsInf(negativeValue, 0) {
-			return nil
-		}
-		if negativeValue == 0 {
-			result := math.Expm1(negativeLogReturn)
-			return &result
-		}
-		if chartHasSignChange(negativeValue, previousNegativeValue) {
-			lowerLogReturn = negativeLogReturn
-			upperLogReturn = previousNegativeLogReturn
-			lowerValue = negativeValue
-			foundBracket = true
+		if foundBracket || currentStep == maxAbsLogReturn {
 			break
 		}
-		previousNegativeLogReturn = negativeLogReturn
-		previousNegativeValue = negativeValue
-
-		if currentStep == maxAbsLogReturn {
-			break
-		}
+		previousStep = currentStep
 	}
 
 	if !foundBracket {
 		return nil
 	}
 
+	lowerValue := valueAt(lowerLogReturn)
 	for i := 0; i < maxIterations; i++ {
 		midLogReturn := (lowerLogReturn + upperLogReturn) / 2
-		midValue := chartMoneyWeightedReturnValue(
-			midLogReturn,
-			beginningValue,
-			endingValue,
-			cashFlows,
-		)
+		midValue := valueAt(midLogReturn)
 		if math.IsNaN(midValue) || math.IsInf(midValue, 0) {
 			return nil
 		}
