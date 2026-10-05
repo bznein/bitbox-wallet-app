@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Lightning: show the estimated claim fee before sending a top-up
 - Mobile: open `lightning:` payment links in BitBoxApp
 - Rename "Factory Reset" to "Delete wallet from BitBox" (settings)
 - Lightning: use the configured Tor proxy
