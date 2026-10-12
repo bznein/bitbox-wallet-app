@@ -9,6 +9,21 @@ import XCTest
 import Security
 @testable import BitBoxApp
 
+final class NativeQRScannerTests: XCTestCase {
+    func testQRTextIsSerializedAsData() throws {
+        let text = "\"');window.unexpected = true;//\n<&>"
+        let event: [String: Any] = ["sessionId": 17, "type": "result", "text": text]
+        let script = try XCTUnwrap(NativeQRScanner.eventScript(event))
+        let prefix = "window.onNativeQRScannerEvent && window.onNativeQRScannerEvent("
+        XCTAssertTrue(script.hasPrefix(prefix))
+        XCTAssertTrue(script.hasSuffix(");"))
+        let json = String(script.dropFirst(prefix.count).dropLast(2))
+        let decoded = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        XCTAssertEqual(decoded?["sessionId"] as? Int, 17)
+        XCTAssertEqual(decoded?["text"] as? String, text)
+    }
+}
+
 private final class InMemoryLightningKeychainClient: LightningKeychainClient {
     private var items: [String: Data] = [:]
 

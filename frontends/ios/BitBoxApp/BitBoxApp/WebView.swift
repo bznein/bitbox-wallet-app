@@ -37,6 +37,7 @@ let scheme = "qrc"
 
 class JavascriptBridge: NSObject, WKScriptMessageHandler {
     weak var webView: WKWebView?
+    weak var qrScanner: NativeQRScanner?
 
     private func isTrustedMainFrameMessage(_ message: WKScriptMessage) -> Bool {
         guard message.frameInfo.isMainFrame else {
@@ -49,7 +50,9 @@ class JavascriptBridge: NSObject, WKScriptMessageHandler {
         guard isTrustedMainFrameMessage(message) else {
             return
         }
-        if message.name == "goCall", let body = message.body as? [String: AnyObject] {
+        if message.name == "qrScanner", let body = message.body as? [String: Any] {
+            qrScanner?.handle(body)
+        } else if message.name == "goCall", let body = message.body as? [String: AnyObject] {
             let queryID = body["queryID"] as! Int
             let query = body["query"] as! String
             MobileserverBackendCall(queryID, query)
@@ -154,13 +157,14 @@ struct WebView: UIViewRepresentable {
     // Match Android's 62.5% rem base, scaled with the system text size.
     @ScaledMetric(relativeTo: .body) private var baseFontSizePercentage = 62.5
     
-    func makeUIView(context: Context) -> some WKWebView {
+    func makeUIView(context: Context) -> QRWebViewContainer {
         let contentController = WKUserContentController()
         let bridge = JavascriptBridge()
         contentController.add(bridge, name: "goCall")
         contentController.add(bridge, name: "appReady")
         contentController.add(bridge, name: "readClipboard")
         contentController.add(bridge, name: "hapticFeedback")
+        contentController.add(bridge, name: "qrScanner")
         let config = WKWebViewConfiguration()
         config.userContentController = contentController
 
@@ -184,6 +188,9 @@ struct WebView: UIViewRepresentable {
         config.allowsInlineMediaPlayback = true;
         
         let webView = WKWebView(frame: .zero, configuration: config)
+        let container = QRWebViewContainer(webView: webView)
+        bridge.qrScanner = container.qrScanner
+        context.coordinator.qrScanner = container.qrScanner
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = false
@@ -204,6 +211,9 @@ struct WebView: UIViewRepresentable {
         window.runningOnIOS = true;
         (function() {
           if (window.top !== window) { return; }
+          window.nativeQRScanner = { postMessage: function(command) {
+            window.webkit.messageHandlers.qrScanner.postMessage(command);
+          }};
           var clipboardRequests = {};
           var nextClipboardRequestId = 0;
           window.onIOSClipboardReadResult = function(message) {
@@ -246,15 +256,20 @@ struct WebView: UIViewRepresentable {
             webView.isInspectable = false
         }
         
-        return webView
+        return container
     }
     
     func updateUIView(_ uiView: UIViewType, context: Context) {
-        context.coordinator.updateFontSize(uiView, baseFontSizePercentage: baseFontSizePercentage)
-        guard uiView.url == nil else {
+        let webView = uiView.webView
+        context.coordinator.updateFontSize(webView, baseFontSizePercentage: baseFontSizePercentage)
+        guard webView.url == nil else {
             return
         }
-        uiView.load(URLRequest(url: URL(string: scheme + ":/index.html")!))
+        webView.load(URLRequest(url: URL(string: scheme + ":/index.html")!))
+    }
+
+    static func dismantleUIView(_ uiView: QRWebViewContainer, coordinator: Coordinator) {
+        uiView.qrScanner.stop()
     }
     
     func makeCoordinator() -> Coordinator {
@@ -262,6 +277,7 @@ struct WebView: UIViewRepresentable {
     }
     
     class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+        weak var qrScanner: NativeQRScanner?
         private weak var webView: WKWebView?
         private var fontSizeScript: String?
 
@@ -337,6 +353,10 @@ struct WebView: UIViewRepresentable {
             print("Loading URL: " + url.absoluteString)
             decisionHandler(.allow)
         }
+
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            qrScanner?.stop()
+        }
         
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
             // Intercept target=_blank link clicks and open them in the system browser.
@@ -354,6 +374,7 @@ struct WebView: UIViewRepresentable {
         // Reload root page when WKWebView content process is terminated by the system.
         // Avoids blank screens when foregrounding the app after long inactivity.
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            qrScanner?.stop()
             webView.load((URLRequest(url: URL(string: scheme + ":/index.html")!)))
         }
 

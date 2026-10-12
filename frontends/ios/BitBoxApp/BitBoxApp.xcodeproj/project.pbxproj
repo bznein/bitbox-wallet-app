@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		374700000000000000000002 /* NativeQRScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 374700000000000000000001 /* NativeQRScanner.swift */; };
+		374700000000000000000003 /* NativeQRScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 374700000000000000000001 /* NativeQRScanner.swift */; };
 		8E1846EB2E0AFF6000802D8B /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E1846EA2E0AFF5B00802D8B /* NetworkMonitor.swift */; };
 		8E1846EC2E0AFF6000802D8B /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E1846EA2E0AFF5B00802D8B /* NetworkMonitor.swift */; };
 		9A0000010000000000000002 /* LightningEncryptionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0000010000000000000001 /* LightningEncryptionHelper.swift */; };
@@ -114,6 +116,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		374700000000000000000001 /* NativeQRScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeQRScanner.swift; sourceTree = "<group>"; };
 		8E1846EA2E0AFF5B00802D8B /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		9A0000010000000000000001 /* LightningEncryptionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightningEncryptionHelper.swift; sourceTree = "<group>"; };
 		B536195A2E4B2D1B00B3E10D /* Launch Screen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = "Launch Screen.storyboard"; sourceTree = "<group>"; };
@@ -243,6 +246,7 @@
 				EEEE00000000000000000003 /* WidgetAppGroupSync.swift */,
 				CCCC00010000000000000004 /* WidgetShared.swift */,
 				D76516322B1F3D1A00DC03A9 /* WebView.swift */,
+				374700000000000000000001 /* NativeQRScanner.swift */,
 				D765160C2B1F3B1500DC03A9 /* Assets.xcassets */,
 				D765160E2B1F3B1500DC03A9 /* Preview Content */,
 				D721B20C2D369EC100767080 /* Bluetooth.swift */,
@@ -544,6 +548,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D700B5FD2CA2FFAF000496D4 /* WebView.swift in Sources */,
+				374700000000000000000003 /* NativeQRScanner.swift in Sources */,
 				8E1846EC2E0AFF6000802D8B /* NetworkMonitor.swift in Sources */,
 				D721B20E2D36A00000767080 /* Bluetooth.swift in Sources */,
 				D700B5FE2CA2FFAF000496D4 /* BitBoxAppApp.swift in Sources */,
@@ -558,6 +563,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D76516332B1F3D1B00DC03A9 /* WebView.swift in Sources */,
+				374700000000000000000002 /* NativeQRScanner.swift in Sources */,
 				8E1846EB2E0AFF6000802D8B /* NetworkMonitor.swift in Sources */,
 				D721B20D2D369EC100767080 /* Bluetooth.swift in Sources */,
 				D76516092B1F3B1300DC03A9 /* BitBoxAppApp.swift in Sources */,
