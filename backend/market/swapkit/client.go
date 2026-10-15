@@ -23,7 +23,7 @@ type Client struct {
 // NewClient creates a new SwapKit API client.
 func NewClient(httpClient *http.Client) *Client {
 	return &Client{
-		baseURL:    "https://swapkit.shiftcrypto.io/v3",
+		baseURL:    "https://swapkit.shiftcrypto.dev/v3",
 		httpClient: httpClient,
 		log:        logging.Get().WithGroup("swapkit"),
 	}

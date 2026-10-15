@@ -1036,6 +1036,7 @@
           "title": "Security"
         },
         "slippage": {
+          "review": "Receive amounts shown before review are estimates and may change when preparing your swap. Check the updated amount in the review screen and on your BitBox before confirming.",
           "text": "Slippage is the difference between the price you expect when you start a swap and the price you actually receive when the swap is completed. Because cryptocurrency prices can move quickly and liquidity can change during the transaction, the final amount you receive may be lower than estimated.",
           "title": "Slippage"
         }
