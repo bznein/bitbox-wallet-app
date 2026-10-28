@@ -3,6 +3,7 @@ module github.com/BitBoxSwiss/bitbox-wallet-app
 go 1.26.10
 
 require (
+	codeberg.org/go-pdf/fpdf v0.12.0
 	github.com/BitBoxSwiss/bitbox02-api-go v0.0.0-20261007170938-fce8dbacc9b8
 	github.com/BitBoxSwiss/block-client-go v0.0.0-20250813114605-c276f6470c3d
 	github.com/breez/breez-sdk-spark-go v0.26.0
